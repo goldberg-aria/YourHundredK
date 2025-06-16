@@ -1,0 +1,20 @@
+{
+  "name": "yourhundredk",
+  "version": "1.0.0",
+  "description": "투자 시뮬레이션 웹 애플리케이션 - 과거 특정 시점에 투자했다면 현재 얼마가 되었을까요?",
+  "main": "index.js",
+  "scripts": {
+    "build:css": "tailwindcss -i ./app/static/css/styles.css -o ./app/static/css/output.css",
+    "watch:css": "tailwindcss -i ./app/static/css/styles.css -o ./app/static/css/output.css --watch",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "autoprefixer": "^10.4.14",
+    "postcss": "^8.4.24",
+    "tailwindcss": "^3.3.2"
+  }
+}
