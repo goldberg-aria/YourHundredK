@@ -1,8 +1,7 @@
 import yfinance as yf
 import pandas as pd
 from datetime import datetime, timedelta
-import psycopg2
-from psycopg2.extras import execute_batch
+import psycopg
 from dotenv import load_dotenv
 import os
 import pytz
@@ -27,7 +26,7 @@ DATA_FRESHNESS_HOURS = 1
 def get_db_connection():
     """데이터베이스 연결을 생성합니다."""
     try:
-        return psycopg2.connect(os.getenv('DATABASE_URL'))
+        return psycopg.connect(os.getenv('DATABASE_URL'))
     except Exception as e:
         logger.error(f"데이터베이스 연결 실패: {str(e)}")
         raise
@@ -235,7 +234,7 @@ def fetch_stock_data(ticker: str, start_date: str, end_date: str = None, force_r
         with get_db_connection() as conn:
             with conn.cursor() as cur:
                 # 주가 데이터 저장
-                execute_batch(cur, """
+                cur.executemany("""
                     INSERT INTO stocks (ticker, date, open, high, low, close, volume, updated_at)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (ticker, date) 
@@ -250,7 +249,7 @@ def fetch_stock_data(ticker: str, start_date: str, end_date: str = None, force_r
 
                 # 배당금 데이터 저장
                 if not dividends.empty and dividend_data:
-                    execute_batch(cur, """
+                    cur.executemany("""
                         INSERT INTO dividends (ticker, date, amount, updated_at)
                         VALUES (%s, %s, %s, %s)
                         ON CONFLICT (ticker, date) 
