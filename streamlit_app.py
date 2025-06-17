@@ -275,21 +275,39 @@ def main():
         # 결과 표시
         st.header("📈 투자 결과")
         
-        # 주요 지표
+        # 주요 지표 - 폰트 크기 조정을 위한 CSS 스타일 추가
+        st.markdown("""
+        <style>
+        div[data-testid="metric-container"] {
+            background-color: #f0f2f6;
+            border: 1px solid #d0d0d0;
+            padding: 5px;
+            border-radius: 5px;
+            margin: 5px 0;
+        }
+        div[data-testid="metric-container"] > div > div > div {
+            font-size: 14px !important;
+        }
+        div[data-testid="metric-container"] > div > div > div[data-testid="metric-value"] {
+            font-size: 18px !important;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+        
         final_result = results.iloc[-1]
         col1, col2, col3, col4, col5 = st.columns(5)
         
         with col1:
             st.metric(
                 "총 투자금액",
-                f"${final_result['total_invested']:,.2f}"
+                f"${final_result['total_invested']:,.0f}"
             )
         
         with col2:
             st.metric(
                 "현재 가치",
-                f"${final_result['current_value']:,.2f}",
-                f"${final_result['gain_loss']:,.2f}"
+                f"${final_result['current_value']:,.0f}",
+                f"${final_result['gain_loss']:,.0f}"
             )
         
         with col3:
@@ -301,13 +319,13 @@ def main():
         with col4:
             st.metric(
                 "총 배당금",
-                f"${final_result['total_dividends']:,.2f}"
+                f"${final_result['total_dividends']:,.0f}"
             )
         
         with col5:
             st.metric(
                 "보유 주식 수",
-                f"{final_result['shares']:.4f}"
+                f"{final_result['shares']:.2f}"
             )
         
         # 차트 생성 (서브플롯 - 투자 성과 + 배당금 막대그래프)
