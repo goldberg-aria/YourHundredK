@@ -1,11 +1,9 @@
 import os
 from app import create_app
 
-# 환경 변수에서 설정 가져오기
-config_name = os.getenv('FLASK_ENV', 'production')
-
 # Flask 앱 생성
-app = create_app()
+application = create_app()
+app = application
 
 if __name__ == '__main__':
     # 로컬 개발용
