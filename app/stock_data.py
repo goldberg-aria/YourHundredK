@@ -97,9 +97,13 @@ def fetch_stock_data(ticker: str, start_date: str, end_date: str = None, force_r
             try:
                 with get_db_connection() as conn:
                     with conn.cursor() as cur:
-                        cur.execute("SELECT MAX(date) FROM stocks WHERE ticker = %s", (ticker,))
-                        last_date = cur.fetchone()[0]
-                        if last_date:
+                        # 마지막 날짜와 실제 데이터 개수 모두 확인
+                        cur.execute("SELECT MAX(date), COUNT(*) FROM stocks WHERE ticker = %s", (ticker,))
+                        result = cur.fetchone()
+                        last_date = result[0]
+                        data_count = result[1]
+                        
+                        if last_date and data_count > 0:
                             last_date_str = last_date.strftime('%Y-%m-%d')
                             # 만약 마지막 저장 날짜가 end_date보다 이전이면, 그 다음날부터만 추가
                             if last_date_str >= end_date:
@@ -109,8 +113,12 @@ def fetch_stock_data(ticker: str, start_date: str, end_date: str = None, force_r
                             if start_date <= last_date_str:
                                 start_date = (datetime.strptime(last_date_str, '%Y-%m-%d') + timedelta(days=1)).strftime('%Y-%m-%d')
                                 logger.info(f"증분 저장: {start_date}부터 {end_date}까지 추가 저장")
+                        else:
+                            # DB에 데이터가 없으면 전체 구간 저장
+                            logger.info(f"{ticker}의 DB 데이터가 없어서 전체 구간 저장을 진행합니다.")
             except Exception as e:
-                logger.warning(f"마지막 저장 날짜 조회 실패: {str(e)} (무시하고 전체 저장 진행)")
+                logger.error(f"DB 확인 중 오류: {e}")
+                # DB 오류 시 전체 구간 저장 진행
 
         # 주식 정보 가져오기 (캐시 사용)
         try:
@@ -126,7 +134,7 @@ def fetch_stock_data(ticker: str, start_date: str, end_date: str = None, force_r
             hist = stock.history(start=start_date, end=end_date)
             if hist.empty:
                 logger.info(f"{ticker}의 {start_date}부터 {end_date}까지의 신규 데이터가 없습니다")
-                return True
+                return False
         except Exception as e:
             logger.error(f"주가 데이터 가져오기 실패 ({ticker}): {str(e)}")
             raise ValueError(f"{ticker}의 주가 데이터를 가져오는데 실패했습니다")

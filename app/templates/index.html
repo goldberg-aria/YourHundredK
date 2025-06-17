@@ -34,13 +34,16 @@
             <div class="px-4 py-6 sm:px-0">
                 <div class="bg-white rounded-lg shadow p-6">
                     <h2 class="text-xl font-semibold mb-4">투자 시뮬레이션</h2>
-                    <!-- 싱글/컴페어 모드 탭 -->
-                    <div class="flex mb-6">
-                        <button id="singleTab" onclick="setMode('single')" class="flex-1 py-2 rounded-l-md text-sm font-medium border border-blue-500 text-blue-500 bg-white hover:bg-blue-50">싱글</button>
-                        <button id="compareTab" onclick="setMode('compare')" class="flex-1 py-2 rounded-r-md text-sm font-medium border border-blue-500 text-blue-500 bg-white hover:bg-blue-50">컴페어</button>
+                    
+                    <!-- 새로고침 버튼 -->
+                    <div class="flex justify-end mb-4">
+                        <button id="refreshBtn" class="px-4 py-2 bg-red-600 text-white rounded-lg shadow hover:bg-red-700 transition-colors">
+                            새로고침
+                        </button>
                     </div>
+                    
                     <!-- 입력 폼 -->
-                    <div id="singleForm" class="grid grid-cols-1 gap-6 mb-6">
+                    <div class="grid grid-cols-1 gap-6 mb-6">
                         <div>
                             <label class="block text-sm font-medium text-gray-700">종목 선택</label>
                             <select id="ticker" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" onchange="updateFullName()">
@@ -76,17 +79,7 @@
                                 계산하기
                             </button>
                         </div>
-                        <div>
-                            <button onclick="refreshData()" 
-                                    class="w-full bg-gray-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2">
-                                새로고침 (전체 데이터 갱신)
-                            </button>
-                        </div>
                     </div>
-                    <div id="compareForm" class="grid grid-cols-1 gap-6 mb-6 hidden">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">종목1</label>
 
                     <!-- 오류 메시지 -->
                     <div id="error" class="hidden mt-4 p-4 bg-red-50 rounded-md">
@@ -110,13 +103,10 @@
                         </div>
                     </div>
 
-                    <!-- 결과 표시 영역 -->
-                    <div id="results" class="hidden">
-                        <h3 class="text-lg font-medium text-gray-900 mb-4">투자 결과</h3>
-                        <div class="bg-gray-50 rounded-lg p-4">
-                            <div id="resultContent" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
-                            <div id="chart" class="mt-6"></div>
-                        </div>
+                    <!-- 결과 영역 -->
+                    <div id="resultArea" class="mt-6">
+                        <div id="resultContent"></div>
+                        <div id="noResultMsg" class="text-center text-gray-400 py-8 hidden">결과가 없습니다. 조건을 다시 확인해 주세요.</div>
                     </div>
                 </div>
             </div>
@@ -151,10 +141,10 @@
             // 시작일을 1년 전으로 설정
             const lastYear = new Date(yesterday);
             lastYear.setFullYear(lastYear.getFullYear() - 1);
-            document.getElementById('start_date').value = lastYear.toISOString().split('T')[0];
+            document.getElementById('start_date').value = '2024-06-17';
             
             // 종료일을 어제로 설정
-            document.getElementById('end_date').value = maxDate;
+            document.getElementById('end_date').value = '2025-06-13';
             
             // 시작일이 변경될 때 종료일 제한
             document.getElementById('start_date').addEventListener('change', function(e) {
@@ -196,48 +186,48 @@
         }
 
         async function calculate() {
+            console.log('calculate function called');
             const ticker = document.getElementById('ticker').value;
             const investment_amount = document.getElementById('investment_amount').value;
             const start_date = document.getElementById('start_date').value;
             const end_date = document.getElementById('end_date').value;
-            
             const loading = document.getElementById('loading');
-            const results = document.getElementById('results');
+            
+            console.log('Form values:', { ticker, investment_amount, start_date, end_date });
             
             hideError();
             loading.classList.remove('hidden');
-            results.classList.add('hidden');
             
             try {
-                // 먼저 데이터 가져오기
+                // 데이터 가져오기
+                console.log('Fetching stock data...');
                 const fetchResponse = await fetch('/api/fetch-stock-data', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ ticker, start_date, end_date })
                 });
-
                 const fetchData = await fetchResponse.json();
+                console.log('Fetch response:', fetchResponse.status, fetchData);
+                
                 if (!fetchResponse.ok) {
                     throw new Error(fetchData.error || '데이터를 가져오는데 실패했습니다.');
                 }
                 
                 // 수익률 계산
+                console.log('Calculating returns...');
                 const response = await fetch('/api/calculate-returns', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ ticker, investment_amount, start_date, end_date })
                 });
-                
                 const data = await response.json();
-                if (!response.ok) {
-                    throw new Error(data.error || '수익률 계산에 실패했습니다.');
-                }
+                console.log('Calculate response:', response.status, data);
                 
-                displayResults(data);
+                loading.classList.add('hidden');
+                showResult(data);
             } catch (error) {
+                console.error('Error in calculate function:', error);
                 showError(error.message);
-                console.error('Error:', error);
-            } finally {
                 loading.classList.add('hidden');
             }
         }
@@ -247,10 +237,8 @@
             const start_date = document.getElementById('start_date').value;
             const end_date = document.getElementById('end_date').value;
             const loading = document.getElementById('loading');
-            const results = document.getElementById('results');
             hideError();
             loading.classList.remove('hidden');
-            results.classList.add('hidden');
             try {
                 const fetchResponse = await fetch('/api/fetch-stock-data', {
                     method: 'POST',
@@ -269,40 +257,68 @@
             }
         }
 
-        function displayResults(data) {
-            const results = document.getElementById('results');
+        function showResult(data) {
+            console.log('showResult called with data:', data);
             const resultContent = document.getElementById('resultContent');
-            const chart = document.getElementById('chart');
+            const noResultMsg = document.getElementById('noResultMsg');
             
-            results.classList.remove('hidden');
-            
-            resultContent.innerHTML = `
-                <div class="stat-card">
-                    <h4 class="font-medium text-gray-900">보유 주식 수</h4>
-                    <p class="text-2xl font-semibold text-blue-600">${data.shares_owned.toLocaleString()} 주</p>
-                </div>
-                <div class="stat-card">
-                    <h4 class="font-medium text-gray-900">총 배당금</h4>
-                    <p class="text-2xl font-semibold text-green-600">$${data.total_dividends.toLocaleString()}</p>
-                </div>
-                <div class="stat-card">
-                    <h4 class="font-medium text-gray-900">초기 투자금</h4>
-                    <p class="text-2xl font-semibold text-gray-900">$${data.initial_investment.toLocaleString()}</p>
-                </div>
-                <div class="stat-card">
-                    <h4 class="font-medium text-gray-900">현재 가치</h4>
-                    <p class="text-2xl font-semibold text-blue-600">$${data.current_value.toLocaleString()}</p>
-                </div>
-                <div class="stat-card col-span-2">
-                    <h4 class="font-medium text-gray-900">총 수익률</h4>
-                    <p class="text-2xl font-semibold ${data.total_return_percentage >= 0 ? 'text-green-600' : 'text-red-600'}">
-                        ${data.total_return_percentage.toLocaleString()}%
-                    </p>
-                </div>
-            `;
-            
-            chart.innerHTML = data.chart;
+            if (!data || data.error) {
+                console.log('No data or error found, showing no result message');
+                resultContent.innerHTML = '';
+                noResultMsg.classList.remove('hidden');
+            } else {
+                console.log('Rendering result data');
+                
+                // 결과 HTML 생성
+                const resultHTML = `
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-4">
+                        <h3 class="text-lg font-semibold text-blue-900 mb-4">투자 결과</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="bg-white p-4 rounded-lg shadow-sm">
+                                <div class="text-sm text-gray-600">초기 투자금</div>
+                                <div class="text-xl font-bold text-gray-900">$${data.initial_investment.toLocaleString()}</div>
+                            </div>
+                            <div class="bg-white p-4 rounded-lg shadow-sm">
+                                <div class="text-sm text-gray-600">현재 가치</div>
+                                <div class="text-xl font-bold text-gray-900">$${data.current_value.toLocaleString()}</div>
+                            </div>
+                            <div class="bg-white p-4 rounded-lg shadow-sm">
+                                <div class="text-sm text-gray-600">총 수익률</div>
+                                <div class="text-xl font-bold ${data.total_return_percentage >= 0 ? 'text-green-600' : 'text-red-600'}">
+                                    ${data.total_return_percentage.toFixed(2)}%
+                                </div>
+                            </div>
+                            <div class="bg-white p-4 rounded-lg shadow-sm">
+                                <div class="text-sm text-gray-600">총 배당금</div>
+                                <div class="text-xl font-bold text-gray-900">$${data.total_dividends.toLocaleString()}</div>
+                            </div>
+                        </div>
+                        <div class="mt-4 text-sm text-gray-600">
+                            <div>보유 주식 수: ${data.shares_owned.toFixed(2)}주</div>
+                            <div>기간: ${data.start_date} ~ ${data.end_date}</div>
+                            <div>시작가: $${data.initial_price.toFixed(2)} | 종가: $${data.final_price.toFixed(2)}</div>
+                        </div>
+                    </div>
+                `;
+                
+                resultContent.innerHTML = resultHTML;
+                noResultMsg.classList.add('hidden');
+                
+                // 차트가 있으면 표시
+                if (data.chart) {
+                    const chartDiv = document.createElement('div');
+                    chartDiv.innerHTML = data.chart;
+                    resultContent.appendChild(chartDiv);
+                }
+                
+                console.log('Result rendered successfully');
+            }
         }
+
+        // 이벤트 리스너 등록
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('refreshBtn').addEventListener('click', refreshData);
+        });
     </script>
 </body>
 </html> 
