@@ -2,7 +2,10 @@
 CREATE TABLE IF NOT EXISTS stocks (
     ticker VARCHAR(10),
     date DATE,
-    close_price FLOAT,
+    open FLOAT,
+    high FLOAT,
+    low FLOAT,
+    close FLOAT,
     volume BIGINT,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (ticker, date)
@@ -13,6 +16,7 @@ CREATE TABLE IF NOT EXISTS dividends (
     ticker VARCHAR(10),
     date DATE,
     amount FLOAT,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (ticker, date)
 );
 
@@ -21,6 +25,7 @@ CREATE TABLE IF NOT EXISTS splits (
     ticker VARCHAR(10),
     date DATE,
     ratio FLOAT,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (ticker, date)
 );
 

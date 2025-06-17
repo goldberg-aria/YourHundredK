@@ -130,11 +130,32 @@ def fetch_stock_data(ticker: str, start_date: str, end_date: str = None, force_r
         else:
             end_date = (datetime.now(pytz.UTC) - timedelta(days=1)).strftime('%Y-%m-%d')
 
-        # 시작일이 종료일보다 이후면 오류 발생
-        if datetime.strptime(start_date, '%Y-%m-%d') > datetime.strptime(end_date, '%Y-%m-%d'):
-            raise ValueError(f"시작일 {start_date}가 종료일 {end_date}보다 이후입니다")
-
         logger.info(f"{ticker} 데이터 가져오기: {start_date}부터 {end_date}까지 (force_refresh={force_refresh})")
+
+        # force_refresh가 True인 경우 기존 데이터 삭제
+        if force_refresh:
+            try:
+                with get_db_connection() as conn:
+                    with conn.cursor() as cur:
+                        # 주가 데이터 삭제
+                        cur.execute("""
+                            DELETE FROM stocks 
+                            WHERE ticker = %s 
+                            AND date BETWEEN %s AND %s
+                        """, (ticker, start_date, end_date))
+                        
+                        # 배당금 데이터 삭제
+                        cur.execute("""
+                            DELETE FROM dividends 
+                            WHERE ticker = %s 
+                            AND date BETWEEN %s AND %s
+                        """, (ticker, start_date, end_date))
+                        
+                        conn.commit()
+                        logger.info(f"{ticker}의 {start_date}~{end_date} 기존 데이터 삭제 완료")
+            except Exception as e:
+                logger.error(f"기존 데이터 삭제 중 오류: {str(e)}")
+                raise
 
         # 데이터 최신성 체크 (force_refresh가 아닌 경우에만)
         if not force_refresh:
@@ -164,183 +185,229 @@ def fetch_stock_data(ticker: str, start_date: str, end_date: str = None, force_r
                                 return True
                             # 시작일이 이미 저장된 마지막 날짜보다 이전이면, 그 다음날로 조정
                             if start_date <= last_date_str:
-                                start_date = (datetime.strptime(last_date_str, '%Y-%m-%d') + timedelta(days=1)).strftime('%Y-%m-%d')
-                                logger.info(f"증분 저장: {start_date}부터 {end_date}까지 추가 저장")
+                                start_date = (last_date + timedelta(days=1)).strftime('%Y-%m-%d')
+                                logger.info(f"시작일을 마지막 저장 날짜 다음 날인 {start_date}로 조정")
                         else:
                             # DB에 데이터가 없으면 전체 구간 저장
                             logger.info(f"{ticker}의 DB 데이터가 없어서 전체 구간 저장을 진행합니다.")
             except Exception as e:
-                logger.error(f"DB 확인 중 오류: {e}")
-                # DB 오류 시 전체 구간 저장 진행
+                logger.error(f"마지막 저장 날짜 조회 중 오류: {str(e)}")
+                raise
 
-        # 주식 정보 가져오기 (캐시 사용)
-        try:
-            stock_info = get_cached_stock_info(ticker)
-        except Exception as e:
-            logger.error(f"yfinance API 오류 ({ticker}): {str(e)}")
-            raise ValueError(f"종목 {ticker}의 데이터를 가져오는데 실패했습니다")
+        # API 요청 전 랜덤 딜레이
+        time.sleep(random.uniform(MIN_REQUEST_DELAY, MAX_REQUEST_DELAY))
 
-        # 주가 데이터 가져오기
-        try:
-            time.sleep(random.uniform(MIN_REQUEST_DELAY, MAX_REQUEST_DELAY))
-            stock = yf.Ticker(ticker)
-            hist = stock.history(start=start_date, end=end_date)
-            if hist.empty:
-                logger.info(f"{ticker}의 {start_date}부터 {end_date}까지의 신규 데이터가 없습니다")
-                return False
-        except Exception as e:
-            logger.error(f"주가 데이터 가져오기 실패 ({ticker}): {str(e)}")
-            raise ValueError(f"{ticker}의 주가 데이터를 가져오는데 실패했습니다")
+        # yfinance에서 데이터 가져오기
+        stock = yf.Ticker(ticker)
+        hist = stock.history(start=start_date, end=end_date)
+        
+        if hist.empty:
+            logger.warning(f"{ticker}의 {start_date}~{end_date} 데이터가 없습니다")
+            return False
+
+        # 주가 데이터 저장
+        stock_data = []
+        for date, row in hist.iterrows():
+            stock_data.append((
+                ticker,
+                date.strftime('%Y-%m-%d'),
+                float(row['Open']),
+                float(row['High']),
+                float(row['Low']),
+                float(row['Close']),
+                int(row['Volume']),
+                datetime.now(pytz.UTC)
+            ))
 
         # 배당금 데이터 가져오기
-        try:
-            time.sleep(random.uniform(MIN_REQUEST_DELAY, MAX_REQUEST_DELAY))
-            dividends = stock.dividends.loc[start_date:end_date] if not stock.dividends.empty else pd.Series()
-        except Exception as e:
-            logger.warning(f"배당금 데이터 가져오기 실패 ({ticker}): {str(e)}")
-            dividends = pd.Series()
-
-        # 주식 분할 데이터 가져오기
-        try:
-            time.sleep(random.uniform(MIN_REQUEST_DELAY, MAX_REQUEST_DELAY))
-            splits = stock.splits.loc[start_date:end_date] if not stock.splits.empty else pd.Series()
-        except Exception as e:
-            logger.warning(f"주식 분할 데이터 가져오기 실패 ({ticker}): {str(e)}")
-            splits = pd.Series()
-
-        try:
-            with get_db_connection() as conn:
-                with conn.cursor() as cur:
-                    # 주가 데이터 저장 (updated_at 추가)
-                    stock_data = [(
+        dividends = stock.dividends
+        if not dividends.empty:
+            dividend_data = []
+            for date, amount in dividends.items():
+                if start_date <= date.strftime('%Y-%m-%d') <= end_date:
+                    dividend_data.append((
                         ticker,
                         date.strftime('%Y-%m-%d'),
-                        float(row['Close']),
-                        int(row['Volume']),
+                        float(amount),
                         datetime.now(pytz.UTC)
-                    ) for date, row in hist.iterrows()]
-
-                    if stock_data:
-                        execute_batch(cur,
-                            """INSERT INTO stocks (ticker, date, close_price, volume, updated_at)
-                               VALUES (%s, %s, %s, %s, %s)
-                               ON CONFLICT (ticker, date) 
-                               DO UPDATE SET close_price = EXCLUDED.close_price,
-                                           volume = EXCLUDED.volume,
-                                           updated_at = EXCLUDED.updated_at""",
-                            stock_data)
-
-                    # 배당금 데이터 저장
-                    if not dividends.empty:
-                        dividend_data = [(
-                            ticker,
-                            date.strftime('%Y-%m-%d'),
-                            float(amount)
-                        ) for date, amount in dividends.items()]
-
-                        execute_batch(cur,
-                            """INSERT INTO dividends (ticker, date, amount)
-                               VALUES (%s, %s, %s)
-                               ON CONFLICT (ticker, date)
-                               DO UPDATE SET amount = EXCLUDED.amount""",
-                            dividend_data)
-
-                    # 주식 분할 데이터 저장
-                    if not splits.empty:
-                        split_data = [(
-                            ticker,
-                            date.strftime('%Y-%m-%d'),
-                            float(ratio)
-                        ) for date, ratio in splits.items()]
-
-                        execute_batch(cur,
-                            """INSERT INTO splits (ticker, date, ratio)
-                               VALUES (%s, %s, %s)
-                               ON CONFLICT (ticker, date)
-                               DO UPDATE SET ratio = EXCLUDED.ratio""",
-                            split_data)
-
-                    conn.commit()
-        except Exception as e:
-            logger.error(f"데이터베이스 저장 실패 ({ticker}): {str(e)}")
-            raise ValueError(f"{ticker}의 데이터를 저장하는데 실패했습니다")
-
-        return True
-    except Exception as e:
-        logger.error(f"{ticker} 데이터 가져오기 실패: {str(e)}")
-        return False
-
-def get_stock_data(ticker: str, start_date: str, end_date: str = None):
-    """데이터베이스에서 주식 데이터를 조회합니다."""
-    try:
-        start_date = validate_date(start_date)
-        if end_date:
-            end_date = validate_date(end_date)
-            # 시작일이 종료일보다 이후면 교체
-            if datetime.strptime(start_date, '%Y-%m-%d') > datetime.strptime(end_date, '%Y-%m-%d'):
-                start_date, end_date = end_date, start_date
-        else:
-            end_date = datetime.now().strftime('%Y-%m-%d')
+                    ))
 
         with get_db_connection() as conn:
             with conn.cursor() as cur:
+                # 주가 데이터 저장
+                execute_batch(cur, """
+                    INSERT INTO stocks (ticker, date, open, high, low, close, volume, updated_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (ticker, date) 
+                    DO UPDATE SET 
+                        open = EXCLUDED.open,
+                        high = EXCLUDED.high,
+                        low = EXCLUDED.low,
+                        close = EXCLUDED.close,
+                        volume = EXCLUDED.volume,
+                        updated_at = EXCLUDED.updated_at
+                """, stock_data)
+
+                # 배당금 데이터 저장
+                if not dividends.empty and dividend_data:
+                    execute_batch(cur, """
+                        INSERT INTO dividends (ticker, date, amount, updated_at)
+                        VALUES (%s, %s, %s, %s)
+                        ON CONFLICT (ticker, date) 
+                        DO UPDATE SET 
+                            amount = EXCLUDED.amount,
+                            updated_at = EXCLUDED.updated_at
+                    """, dividend_data)
+
+            conn.commit()
+            logger.info(f"{ticker}의 {start_date}~{end_date} 데이터 저장 완료")
+            return True
+
+    except Exception as e:
+        logger.error(f"{ticker} 데이터 가져오기 실패: {str(e)}")
+        raise
+
+def check_dividend_data(ticker: str, start_date: str, end_date: str):
+    """데이터베이스에 저장된 배당금 데이터를 확인합니다."""
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
                 cur.execute("""
-                    SELECT s.date, s.close_price, s.volume, 
-                           COALESCE(d.amount, 0) as dividend,
-                           COALESCE(sp.ratio, 1) as split_ratio
-                    FROM stocks s
-                    LEFT JOIN dividends d ON s.ticker = d.ticker AND s.date = d.date
-                    LEFT JOIN splits sp ON s.ticker = sp.ticker AND s.date = sp.date
-                    WHERE s.ticker = %s AND s.date BETWEEN %s AND %s
-                    ORDER BY s.date
+                    SELECT date, amount 
+                    FROM dividends 
+                    WHERE ticker = %s 
+                    AND date BETWEEN %s AND %s 
+                    ORDER BY date
                 """, (ticker, start_date, end_date))
                 
-                columns = ['date', 'close_price', 'volume', 'dividend', 'split_ratio']
-                data = pd.DataFrame(cur.fetchall(), columns=columns)
+                results = cur.fetchall()
                 
-                if data.empty:
-                    raise ValueError(f"No data found for {ticker}")
-                    
-                return data
+                logger.info(f"\n=== {ticker} DB 배당금 데이터 ===")
+                if results:
+                    logger.info("데이터베이스에 저장된 배당금:")
+                    for date, amount in results:
+                        logger.info(f"날짜: {date.strftime('%Y-%m-%d')}, 배당금: ${amount:.4f}")
+                else:
+                    logger.info("데이터베이스에 배당금 데이터가 없습니다.")
+                logger.info("===========================\n")
+                
+                return results
     except Exception as e:
-        print(f"Error getting data for {ticker}: {str(e)}")
+        logger.error(f"배당금 데이터 확인 중 오류: {str(e)}")
+        return None
+
+def get_stock_data(ticker: str, start_date: str, end_date: str = None):
+    """데이터베이스에서 주식 데이터를 가져옵니다."""
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                # 주가 데이터 가져오기
+                cur.execute("""
+                    SELECT s.date, s.open, s.high, s.low, s.close, s.volume, 
+                           COALESCE(d.amount, 0) as dividend
+                    FROM stocks s
+                    LEFT JOIN dividends d ON s.ticker = d.ticker AND s.date = d.date
+                    WHERE s.ticker = %s 
+                    AND s.date BETWEEN %s AND %s
+                    ORDER BY s.date
+                """, (ticker, start_date, end_date or start_date))
+                
+                # 결과를 DataFrame으로 변환
+                columns = ['date', 'open', 'high', 'low', 'close', 'volume', 'dividend']
+                data = cur.fetchall()
+                
+                if not data:
+                    logger.warning(f"No data found for {ticker}")
+                    return pd.DataFrame(columns=columns)
+                
+                df = pd.DataFrame(data, columns=columns)
+                df['date'] = pd.to_datetime(df['date'])
+                df.set_index('date', inplace=True)
+                return df
+                
+    except Exception as e:
+        logger.error(f"Error getting data for {ticker}: {str(e)}")
         return pd.DataFrame()
 
 def calculate_returns(ticker: str, investment_amount: float, start_date: str, end_date: str = None):
     """투자 수익률을 계산합니다."""
     try:
-        data = get_stock_data(ticker, start_date, end_date)
-        if data.empty:
+        # 데이터 가져오기
+        stock_data = get_stock_data(ticker, start_date, end_date)
+        if stock_data.empty:
+            logger.error(f"{ticker}의 데이터가 없습니다")
             return None
+
+        # 날짜 정렬
+        stock_data = stock_data.sort_index()
+
+        # 초기값과 최종값
+        initial_price = stock_data.iloc[0]['close']
+        final_price = stock_data.iloc[-1]['close']
         
-        initial_price = data.iloc[0]['close_price']
-        current_price = data.iloc[-1]['close_price']
-        
-        # 주식 수량 계산 (분할 고려)
+        # 보유 주식수
         shares = investment_amount / initial_price
-        split_multiplier = data['split_ratio'].prod()
-        current_shares = shares * split_multiplier
+        
+        # 자본 이득
+        capital_gains = (final_price - initial_price) * shares
         
         # 배당금 계산
-        total_dividends = (data['dividend'] * shares).sum()
+        total_dividends = stock_data['dividend'].sum() * shares
         
-        # 현재 가치
-        current_value = current_shares * current_price + total_dividends
+        # 총 수익과 수익률
+        total_return = capital_gains + total_dividends
+        total_return_percentage = (total_return / investment_amount) * 100
         
-        # 수익률 계산
-        total_return = (current_value - investment_amount) / investment_amount * 100
+        # 보유 기간 계산 (실제 개월 수)
+        first_date = stock_data.index[0]
+        last_date = stock_data.index[-1]
         
+        logger.info(f"\n=== {ticker} 보유 기간 계산 ===")
+        logger.info(f"시작일: {first_date.strftime('%Y-%m-%d')}")
+        logger.info(f"종료일: {last_date.strftime('%Y-%m-%d')}")
+        
+        # 연, 월 차이 계산
+        years_diff = last_date.year - first_date.year
+        months_diff = last_date.month - first_date.month
+        
+        logger.info(f"연도 차이: {years_diff}")
+        logger.info(f"월 차이: {months_diff}")
+        
+        # 총 개월 수 계산
+        months_held = years_diff * 12 + months_diff
+        logger.info(f"기본 개월 수: {months_held}")
+        
+        if last_date.day < first_date.day:
+            months_held -= 1
+            logger.info(f"일자 조정 후 개월 수: {months_held}")
+        
+        months_held = max(months_held + 1, 1)  # 최소 1개월, 현재 달 포함
+        logger.info(f"최종 개월 수: {months_held}")
+        logger.info("========================\n")
+        
+        # 월 평균 배당금 계산
+        monthly_dividend = total_dividends / months_held
+        
+        # 연간 배당률 계산 (12개월 기준)
+        annual_dividends = monthly_dividend * 12
+        dividend_yield = (annual_dividends / investment_amount) * 100
+
         return {
-            'initial_investment': investment_amount,
-            'current_value': current_value,
-            'total_return_percentage': total_return,
-            'total_dividends': total_dividends,
-            'shares_owned': current_shares,
-            'start_date': start_date,
-            'end_date': end_date or datetime.now().strftime('%Y-%m-%d'),
+            'ticker': ticker,
+            'investment_amount': investment_amount,
+            'shares': shares,
             'initial_price': initial_price,
-            'final_price': current_price
+            'final_price': final_price,
+            'capital_gains': capital_gains,
+            'total_dividends': total_dividends,
+            'monthly_dividend': monthly_dividend,
+            'total_return': total_return,
+            'total_return_percentage': total_return_percentage,
+            'dividend_yield': dividend_yield,
+            'months_held': months_held,
+            'start_date': first_date.strftime('%Y-%m-%d'),
+            'end_date': last_date.strftime('%Y-%m-%d')
         }
     except Exception as e:
-        print(f"Error calculating returns for {ticker}: {str(e)}")
+        logger.error(f"수익률 계산 중 오류: {str(e)}")
         return None 

@@ -47,14 +47,66 @@
                     <!-- 입력 폼 -->
                     <div class="grid grid-cols-1 gap-6 mb-6">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">종목 선택</label>
-                            <select id="ticker" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" onchange="updateFullName()">
-                                <option value="TSLA">TSLA</option>
-                                <option value="TSLY">TSLY</option>
-                                <option value="KO">KO</option>
-                                <option value="SCHD">SCHD</option>
-                            </select>
-                            <div id="ticker-fullname" class="mt-1 text-xs text-gray-500"></div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">인기 종목 빠른 선택</label>
+                            
+                            <!-- 인기 배당주 -->
+                            <div class="mb-4">
+                                <h3 class="text-sm font-semibold text-gray-600 mb-2">🏢 인기 배당주</h3>
+                                <div class="flex flex-wrap gap-2">
+                                    <button onclick="selectTicker('AAPL')" class="px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-800 rounded-full text-sm">AAPL</button>
+                                    <button onclick="selectTicker('JNJ')" class="px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-800 rounded-full text-sm">JNJ</button>
+                                    <button onclick="selectTicker('KO')" class="px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-800 rounded-full text-sm">KO</button>
+                                    <button onclick="selectTicker('PG')" class="px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-800 rounded-full text-sm">PG</button>
+                                    <button onclick="selectTicker('ABBV')" class="px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-800 rounded-full text-sm">ABBV</button>
+                                </div>
+                            </div>
+                            
+                            <!-- 인기 배당 ETF -->
+                            <div class="mb-4">
+                                <h3 class="text-sm font-semibold text-gray-600 mb-2">📈 인기 배당 ETF</h3>
+                                <div class="flex flex-wrap gap-2">
+                                    <button onclick="selectTicker('SCHD')" class="px-3 py-1 bg-green-100 hover:bg-green-200 text-green-800 rounded-full text-sm">SCHD</button>
+                                    <button onclick="selectTicker('VYM')" class="px-3 py-1 bg-green-100 hover:bg-green-200 text-green-800 rounded-full text-sm">VYM</button>
+                                    <button onclick="selectTicker('JEPI')" class="px-3 py-1 bg-green-100 hover:bg-green-200 text-green-800 rounded-full text-sm">JEPI</button>
+                                    <button onclick="selectTicker('DIVO')" class="px-3 py-1 bg-green-100 hover:bg-green-200 text-green-800 rounded-full text-sm">DIVO</button>
+                                    <button onclick="selectTicker('HDV')" class="px-3 py-1 bg-green-100 hover:bg-green-200 text-green-800 rounded-full text-sm">HDV</button>
+                                </div>
+                            </div>
+                            
+                            <!-- 인기 커버드콜 ETF -->
+                            <div class="mb-4">
+                                <h3 class="text-sm font-semibold text-gray-600 mb-2">🎯 인기 커버드콜 ETF</h3>
+                                <div class="flex flex-wrap gap-2">
+                                    <button onclick="selectTicker('QYLD')" class="px-3 py-1 bg-purple-100 hover:bg-purple-200 text-purple-800 rounded-full text-sm">QYLD</button>
+                                    <button onclick="selectTicker('XYLD')" class="px-3 py-1 bg-purple-100 hover:bg-purple-200 text-purple-800 rounded-full text-sm">XYLD</button>
+                                    <button onclick="selectTicker('RYLD')" class="px-3 py-1 bg-purple-100 hover:bg-purple-200 text-purple-800 rounded-full text-sm">RYLD</button>
+                                    <button onclick="selectTicker('JEPQ')" class="px-3 py-1 bg-purple-100 hover:bg-purple-200 text-purple-800 rounded-full text-sm">JEPQ</button>
+                                    <button onclick="selectTicker('QYLG')" class="px-3 py-1 bg-purple-100 hover:bg-purple-200 text-purple-800 rounded-full text-sm">QYLG</button>
+                                </div>
+                            </div>
+
+                            <!-- 맥7 커버드콜 -->
+                            <div class="mb-4">
+                                <h3 class="text-sm font-semibold text-gray-600 mb-2">🌟 맥7 커버드콜</h3>
+                                <div class="flex flex-wrap gap-2">
+                                    <button onclick="selectTicker('TSLY')" class="px-3 py-1 bg-orange-100 hover:bg-orange-200 text-orange-800 rounded-full text-sm">TSLY</button>
+                                    <button onclick="selectTicker('NVDY')" class="px-3 py-1 bg-orange-100 hover:bg-orange-200 text-orange-800 rounded-full text-sm">NVDY</button>
+                                    <button onclick="selectTicker('CONY')" class="px-3 py-1 bg-orange-100 hover:bg-orange-200 text-orange-800 rounded-full text-sm">CONY</button>
+                                    <button onclick="selectTicker('GOOY')" class="px-3 py-1 bg-orange-100 hover:bg-orange-200 text-orange-800 rounded-full text-sm">GOOY</button>
+                                    <button onclick="selectTicker('APLY')" class="px-3 py-1 bg-orange-100 hover:bg-orange-200 text-orange-800 rounded-full text-sm">APLY</button>
+                                </div>
+                            </div>
+
+                            <div class="mt-4">
+                                <label class="block text-sm font-medium text-gray-700">직접 입력</label>
+                                <div class="mt-1 flex rounded-md shadow-sm">
+                                    <input type="text" id="ticker" 
+                                           class="flex-1 rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                                           placeholder="예: AAPL, MSFT, GOOGL"
+                                           onchange="updateFullName()">
+                                </div>
+                                <div id="ticker-fullname" class="mt-1 text-xs text-gray-500"></div>
+                            </div>
                         </div>
                         
                         <div>
@@ -105,6 +157,37 @@
                         </div>
                     </div>
 
+                    <!-- 인터랙티브 차트 영역 -->
+                    <div id="chartArea" class="mt-6 mb-6">
+                        <div class="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6 shadow-lg">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-xl font-bold text-gray-900 flex items-center">
+                                    📈 주가 차트
+                                    <span class="ml-2 text-sm font-normal text-gray-600">(차트에서 직접 설정 변경 가능)</span>
+                                </h3>
+                                <div class="flex space-x-2">
+                                    <button onclick="updateChart()" 
+                                            class="px-3 py-1 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition-colors">
+                                        🔄 새로고침
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="interactiveChart" class="w-full h-96 bg-white rounded-lg shadow-inner border border-gray-200"></div>
+                            <div class="mt-4 p-3 bg-blue-100 rounded-lg">
+                                <div class="text-sm text-blue-800">
+                                    💡 <strong>차트 사용법:</strong> 
+                                    <ul class="mt-1 ml-4 list-disc list-inside space-y-1">
+                                        <li>차트 하단의 슬라이더로 날짜 범위를 조정할 수 있습니다</li>
+                                        <li>상단: 주가 라인과 거래량 바 차트</li>
+                                        <li>중간: 💰 배당금 막대그래프 (실제 배당금액)</li>
+                                        <li>하단: 📊 배당수익률 막대그래프 (배당금/주가 비율)</li>
+                                        <li>차트 우상단의 도구로 줌, 팬, 이미지 저장이 가능합니다</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- 결과 영역 -->
                     <div id="resultArea" class="mt-6">
                         <div id="resultContent"></div>
@@ -117,11 +200,44 @@
 
     <script>
         const tickerFullNames = {
-            'TSLA': 'Tesla Inc.',
-            'TSLY': 'Global X Autonomous & Electric Vehicles ETF',
-            'KO': 'Coca-Cola Company',
-            'SCHD': 'Schwab US Dividend Equity ETF'
+            // 인기 배당주
+            'AAPL': 'Apple Inc. - 기술주의 대표적인 배당성장주',
+            'JNJ': 'Johnson & Johnson - 헬스케어 섹터 배당귀족',
+            'KO': 'Coca-Cola Company - 소비재 섹터 배당귀족',
+            'PG': 'Procter & Gamble - 생활용품 섹터 배당귀족',
+            'ABBV': 'AbbVie Inc. - 높은 배당수익률의 제약회사',
+            
+            // 인기 배당 ETF
+            'SCHD': 'Schwab US Dividend Equity ETF - 배당 성장 중심 ETF',
+            'VYM': 'Vanguard High Dividend Yield ETF - 안정적인 고배당 ETF',
+            'JEPI': 'JPMorgan Equity Premium Income ETF - 월배당 + 옵션 프리미엄',
+            'DIVO': 'Amplify CWP Enhanced Dividend Income ETF - 배당 성장 + 옵션 전략',
+            'HDV': 'iShares Core High Dividend ETF - 고배당 + 퀄리티 ETF',
+            
+            // 인기 커버드콜 ETF
+            'QYLD': 'Global X NASDAQ-100 Covered Call ETF - 나스닥 100 커버드콜',
+            'XYLD': 'Global X S&P 500 Covered Call ETF - S&P 500 커버드콜',
+            'RYLD': 'Global X Russell 2000 Covered Call ETF - 러셀 2000 커버드콜',
+            'JEPQ': 'JPMorgan Nasdaq Equity Premium Income ETF - 나스닥 프리미엄 인컴',
+            'QYLG': 'Global X Nasdaq 100 Covered Call & Growth ETF - 부분 커버드콜',
+            
+            // 맥7 커버드콜
+            'TSLY': 'YieldMax TSLA Option Income Strategy ETF - 테슬라 커버드콜',
+            'NVDY': 'YieldMax NVDA Option Income Strategy ETF - 엔비디아 커버드콜',
+            'CONY': 'YieldMax COIN Option Income Strategy ETF - 코인베이스 커버드콜',
+            'GOOY': 'YieldMax GOOGL Option Income Strategy ETF - 구글 커버드콜',
+            'APLY': 'YieldMax AAPL Option Income Strategy ETF - 애플 커버드콜'
         };
+
+        let currentChartData = null;
+        let isUpdatingFromChart = false;
+        const DEFAULT_TICKER = 'KO';  // 기본 종목을 코카콜라로 설정
+
+        function selectTicker(ticker) {
+            document.getElementById('ticker').value = ticker;
+            updateFullName();
+            fetchDataAndUpdateChart();
+        }
 
         function updateFullName() {
             const ticker = document.getElementById('ticker').value;
@@ -143,94 +259,397 @@
             // 시작일을 1년 전으로 설정
             const lastYear = new Date(yesterday);
             lastYear.setFullYear(lastYear.getFullYear() - 1);
-            document.getElementById('start_date').value = '2024-06-17';
+            document.getElementById('start_date').value = lastYear.toISOString().split('T')[0];
             
             // 종료일을 어제로 설정
-            document.getElementById('end_date').value = '2025-06-13';
+            document.getElementById('end_date').value = maxDate;
             
-            // 시작일이 변경될 때 종료일 제한
+            // 기본 종목 설정 및 데이터 가져오기
+            document.getElementById('ticker').value = DEFAULT_TICKER;
+            updateFullName();
+            fetchDataAndUpdateChart();
+            
+            // 시작일이 변경될 때 종료일 제한 및 데이터 업데이트
             document.getElementById('start_date').addEventListener('change', function(e) {
-                const startDate = new Date(e.target.value);
-                const endDateInput = document.getElementById('end_date');
-                endDateInput.min = e.target.value;
-                
-                // 종료일이 시작일보다 이전이면 종료일을 시작일로 설정
-                if (new Date(endDateInput.value) < startDate) {
-                    endDateInput.value = e.target.value;
-                }
-            });
-            
-            // 종료일이 변경될 때 시작일 제한
-            document.getElementById('end_date').addEventListener('change', function(e) {
-                const endDate = new Date(e.target.value);
-                const startDateInput = document.getElementById('start_date');
-                startDateInput.max = e.target.value;
-                
-                // 시작일이 종료일보다 이후면 시작일을 종료일로 설정
-                if (new Date(startDateInput.value) > endDate) {
-                    startDateInput.value = e.target.value;
+                if (!isUpdatingFromChart) {
+                    const startDate = new Date(e.target.value);
+                    const endDateInput = document.getElementById('end_date');
+                    endDateInput.min = e.target.value;
+                    
+                    // 종료일이 시작일보다 이전이면 종료일을 시작일로 설정
+                    if (new Date(endDateInput.value) < startDate) {
+                        endDateInput.value = e.target.value;
+                    }
+                    
+                    // 데이터 가져오기 및 차트 업데이트
+                    fetchDataAndUpdateChart();
                 }
             });
 
-            updateFullName(); // 페이지 로드 시 풀네임 표시
+            // 종료일이 변경될 때 데이터 업데이트
+            document.getElementById('end_date').addEventListener('change', function() {
+                if (!isUpdatingFromChart) {
+                    fetchDataAndUpdateChart();
+                }
+            });
+
+            // 종목 직접 입력 시 데이터 업데이트
+            document.getElementById('ticker').addEventListener('change', function() {
+                if (!isUpdatingFromChart) {
+                    fetchDataAndUpdateChart();
+                }
+            });
         });
 
-        function showError(message) {
-            const errorDiv = document.getElementById('error');
-            const errorMessage = document.getElementById('error-message');
-            errorMessage.textContent = message;
-            errorDiv.classList.remove('hidden');
+        async function fetchDataAndUpdateChart() {
+            const ticker = document.getElementById('ticker').value;
+            if (!ticker) return;
+
+            const startDate = document.getElementById('start_date').value;
+            const endDate = document.getElementById('end_date').value;
+            const investmentAmount = document.getElementById('investment_amount').value;
+
+            // 로딩 표시
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('error').classList.add('hidden');
+
+            try {
+                // 데이터 가져오기 요청
+                const response = await fetch('/api/get-chart-data', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        ticker: ticker,
+                        investment_amount: parseFloat(investmentAmount),
+                        start_date: startDate,
+                        end_date: endDate,
+                        force_refresh: true  // 데이터가 없으면 강제로 가져오기
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('데이터를 가져오는데 실패했습니다');
+                }
+
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                // 차트 업데이트
+                currentChartData = data;
+                updateChart();
+
+            } catch (error) {
+                document.getElementById('error').classList.remove('hidden');
+                document.getElementById('error-message').textContent = error.message;
+            } finally {
+                document.getElementById('loading').classList.add('hidden');
+            }
         }
 
-        function hideError() {
-            const errorDiv = document.getElementById('error');
-            errorDiv.classList.add('hidden');
+        function updateChart() {
+            if (!currentChartData) return;
+            
+            const chartDiv = document.getElementById('interactiveChart');
+
+            // 보유주식수 계산 (투자금/시작가)
+            const investmentAmount = parseFloat(document.getElementById('investment_amount').value);
+            const initialPrice = currentChartData.prices.length > 0 ? currentChartData.prices[0] : 1;
+            const shares = investmentAmount / initialPrice;
+
+            // 주가 차트 (라인)
+            const trace1 = {
+                x: currentChartData.dates,
+                y: currentChartData.prices,
+                type: 'scatter',
+                mode: 'lines',
+                name: '주가',
+                line: { 
+                    color: '#1E40AF', 
+                    width: 3,
+                    shape: 'spline'
+                },
+                fill: 'tonexty',
+                fillcolor: 'rgba(30, 64, 175, 0.08)',
+                hovertemplate: '<b>%{x}</b><br>주가: $%{y:,.2f}<extra></extra>',
+                yaxis: 'y'
+            };
+
+            // 배당금 bar
+            const dividendDates = [];
+            const dividendAmounts = [];
+            const dividendTotal = [];
+            const dividendYields = [];
+            currentChartData.dividends.forEach((dividend, index) => {
+                if (dividend > 0) {
+                    const currentPrice = currentChartData.prices[index];
+                    dividendDates.push(currentChartData.dates[index]);
+                    dividendAmounts.push(dividend);
+                    dividendTotal.push(dividend * shares);
+                    dividendYields.push((dividend / currentPrice) * 100);
+                }
+            });
+
+            // Y축 범위 계산
+            const prices = currentChartData.prices;
+            const minPrice = Math.min(...prices);
+            const maxPrice = Math.max(...prices);
+            const priceRange = maxPrice - minPrice;
+            const ymin = minPrice - (priceRange * 0.1); // 최저가의 -10%
+            const ymax = maxPrice + (priceRange * 0.1); // 최고가의 +10%
+
+            const trace2 = {
+                x: dividendDates,
+                y: dividendTotal,  // 배당 총액 사용
+                type: 'bar',
+                name: '배당금 총액',
+                marker: {
+                    color: 'rgba(16, 185, 129, 0.7)',
+                    line: { color: '#059669', width: 1 }
+                },
+                width: 24 * 60 * 60 * 1000, // 1일 넓이 (ms)
+                hovertemplate: '<b>%{x}</b><br>주당 배당금: $%{customdata[0]:.4f}<br>보유주식수: %{customdata[1]:.2f}주<br>총 배당금: <b>$%{y:,.2f}</b><br>시가배당률: %{customdata[2]:.2f}%<extra></extra>',
+                customdata: dividendAmounts.map((amt, i) => [amt, shares, dividendYields[i]]),
+                yaxis: 'y2'  // 두 번째 y축 사용
+            };
+
+            const layout = {
+                title: {
+                    text: `${currentChartData.ticker} 주가 & 배당 분석`,
+                    font: { 
+                        size: 22, 
+                        color: '#1F2937',
+                        family: 'Inter, system-ui, sans-serif'
+                    },
+                    x: 0.5,
+                    xanchor: 'center'
+                },
+                xaxis: {
+                    title: {
+                        text: '날짜',
+                        font: { size: 14, color: '#374151' }
+                    },
+                    rangeslider: { 
+                        visible: true,
+                        thickness: 0.05,
+                        bgcolor: 'rgba(156, 163, 175, 0.1)'
+                    },
+                    type: 'date',
+                    gridcolor: 'rgba(156, 163, 175, 0.1)',
+                    showgrid: true
+                },
+                yaxis: {
+                    title: {
+                        text: '주가 ($)',
+                        font: { size: 14, color: '#1E40AF' }
+                    },
+                    tickformat: ',.2f',
+                    gridcolor: 'rgba(156, 163, 175, 0.1)',
+                    showgrid: true,
+                    zeroline: false,
+                    side: 'left',
+                    range: [ymin, ymax]  // Y축 범위 설정
+                },
+                yaxis2: {
+                    title: {
+                        text: '배당금 총액 ($)',
+                        font: { size: 14, color: '#059669' }
+                    },
+                    tickformat: ',.2f',
+                    gridcolor: 'rgba(156, 163, 175, 0.1)',
+                    showgrid: false,
+                    zeroline: false,
+                    overlaying: 'y',
+                    side: 'right'
+                },
+                hovermode: 'x unified',
+                showlegend: true,
+                legend: {
+                    x: 0.02,
+                    y: 0.98,
+                    bgcolor: 'rgba(255,255,255,0.95)',
+                    bordercolor: '#E5E7EB',
+                    borderwidth: 1,
+                    font: { size: 12 }
+                },
+                margin: { l: 60, r: 80, t: 80, b: 100 },  // 오른쪽 여백 증가
+                plot_bgcolor: '#F8FAFC',
+                paper_bgcolor: '#F1F5F9',
+                font: { 
+                    color: '#374151',
+                    family: 'Inter, system-ui, sans-serif'
+                },
+                transition: {
+                    duration: 500,
+                    easing: 'cubic-in-out'
+                }
+            };
+
+            const config = {
+                responsive: true,
+                displayModeBar: true,
+                modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d'],
+                displaylogo: false,
+                toImageButtonOptions: {
+                    format: 'png',
+                    filename: `${currentChartData.ticker}_chart`,
+                    height: 800,
+                    width: 1200,
+                    scale: 2
+                }
+            };
+
+            Plotly.newPlot(chartDiv, [trace1, trace2], layout, config);
+
+            // 차트 이벤트 리스너
+            chartDiv.on('plotly_relayout', function(eventData) {
+                if (eventData['xaxis.range[0]'] && eventData['xaxis.range[1]']) {
+                    const startDate = new Date(eventData['xaxis.range[0]']).toISOString().split('T')[0];
+                    const endDate = new Date(eventData['xaxis.range[1]']).toISOString().split('T')[0];
+                    
+                    isUpdatingFromChart = true;
+                    document.getElementById('start_date').value = startDate;
+                    document.getElementById('end_date').value = endDate;
+                    isUpdatingFromChart = false;
+                }
+            });
+
+            // 차트 로딩 완료 후 애니메이션
+            chartDiv.on('plotly_afterplot', function() {
+                chartDiv.style.opacity = '0';
+                setTimeout(() => {
+                    chartDiv.style.transition = 'opacity 0.5s ease-in-out';
+                    chartDiv.style.opacity = '1';
+                }, 100);
+            });
         }
 
         async function calculate() {
-            console.log('calculate function called');
             const ticker = document.getElementById('ticker').value;
-            const investment_amount = document.getElementById('investment_amount').value;
-            const start_date = document.getElementById('start_date').value;
-            const end_date = document.getElementById('end_date').value;
-            const loading = document.getElementById('loading');
-            
-            console.log('Form values:', { ticker, investment_amount, start_date, end_date });
-            
-            hideError();
-            loading.classList.remove('hidden');
-            
+            if (!ticker) {
+                document.getElementById('error').classList.remove('hidden');
+                document.getElementById('error-message').textContent = '종목을 선택해주세요.';
+                return;
+            }
+
+            const startDate = document.getElementById('start_date').value;
+            const endDate = document.getElementById('end_date').value;
+            const investmentAmount = parseFloat(document.getElementById('investment_amount').value);
+
+            if (!startDate || !endDate || isNaN(investmentAmount) || investmentAmount <= 0) {
+                document.getElementById('error').classList.remove('hidden');
+                document.getElementById('error-message').textContent = '모든 입력값을 올바르게 입력해주세요.';
+                return;
+            }
+
+            // 로딩 표시
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('error').classList.add('hidden');
+            document.getElementById('resultContent').innerHTML = '';
+            document.getElementById('noResultMsg').classList.add('hidden');
+
             try {
-                // 데이터 가져오기
-                console.log('Fetching stock data...');
-                const fetchResponse = await fetch('/api/fetch-stock-data', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ticker, start_date, end_date })
-                });
-                const fetchData = await fetchResponse.json();
-                console.log('Fetch response:', fetchResponse.status, fetchData);
-                
-                if (!fetchResponse.ok) {
-                    throw new Error(fetchData.error || '데이터를 가져오는데 실패했습니다.');
-                }
-                
-                // 수익률 계산
-                console.log('Calculating returns...');
                 const response = await fetch('/api/calculate-returns', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ticker, investment_amount, start_date, end_date })
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        ticker: ticker,
+                        investment_amount: investmentAmount,
+                        start_date: startDate,
+                        end_date: endDate
+                    })
                 });
-                const data = await response.json();
-                console.log('Calculate response:', response.status, data);
+
+                if (!response.ok) {
+                    throw new Error('수익률 계산에 실패했습니다.');
+                }
+
+                const result = await response.json();
                 
-                loading.classList.add('hidden');
-                showResult(data);
+                if (result.error) {
+                    throw new Error(result.error);
+                }
+
+                // 결과 표시
+                const resultContent = document.getElementById('resultContent');
+                resultContent.innerHTML = `
+                    <div class="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-6 shadow-lg border border-green-200">
+                        <h3 class="text-xl font-bold text-gray-900 mb-4">📊 투자 결과 분석</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="space-y-3">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-600">초기 투자금</span>
+                                    <span class="font-semibold">$${result.investment_amount.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-600">보유 주식수</span>
+                                    <span class="font-semibold">${result.shares.toLocaleString('en-US', {minimumFractionDigits: 2})} 주</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-600">매수 가격</span>
+                                    <span class="font-semibold">$${result.initial_price.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-600">현재 가격</span>
+                                    <span class="font-semibold">$${result.final_price.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
+                                </div>
+                            </div>
+                            <div class="space-y-3">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-600">자본 이득</span>
+                                    <span class="font-semibold ${result.capital_gains >= 0 ? 'text-green-600' : 'text-red-600'}">
+                                        ${result.capital_gains >= 0 ? '+' : ''}$${result.capital_gains.toLocaleString('en-US', {minimumFractionDigits: 2})}
+                                    </span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-600">배당금 총액</span>
+                                    <span class="font-semibold text-green-600">
+                                        +$${result.total_dividends.toLocaleString('en-US', {minimumFractionDigits: 2})}
+                                    </span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-600">월 평균 배당금</span>
+                                    <span class="font-semibold text-green-600">
+                                        +$${result.monthly_dividend.toLocaleString('en-US', {minimumFractionDigits: 2})}
+                                    </span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-600">총 수익</span>
+                                    <span class="font-semibold ${result.total_return >= 0 ? 'text-green-600' : 'text-red-600'}">
+                                        ${result.total_return >= 0 ? '+' : ''}$${result.total_return.toLocaleString('en-US', {minimumFractionDigits: 2})}
+                                    </span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-600">총 수익률</span>
+                                    <span class="font-semibold ${result.total_return_percentage >= 0 ? 'text-green-600' : 'text-red-600'}">
+                                        ${result.total_return_percentage >= 0 ? '+' : ''}${result.total_return_percentage.toFixed(2)}%
+                                    </span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-600">연간 배당률</span>
+                                    <span class="font-semibold text-green-600">${result.dividend_yield.toFixed(2)}%</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-600">보유 기간</span>
+                                    <span class="font-semibold">${result.months_held.toFixed(1)}개월</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
             } catch (error) {
-                console.error('Error in calculate function:', error);
-                showError(error.message);
-                loading.classList.add('hidden');
+                document.getElementById('error').classList.remove('hidden');
+                document.getElementById('error-message').textContent = error.message;
+                document.getElementById('noResultMsg').classList.remove('hidden');
+            } finally {
+                document.getElementById('loading').classList.add('hidden');
             }
         }
 
@@ -253,6 +672,7 @@
                 }
                 loading.classList.add('hidden');
                 alert('데이터가 새로고침되었습니다! 다시 계산하기를 눌러주세요.');
+                updateChart(); // 차트도 업데이트
             } catch (error) {
                 showError(error.message);
                 loading.classList.add('hidden');
