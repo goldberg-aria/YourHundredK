@@ -5,7 +5,7 @@ Render 배포 시 자동으로 테이블을 생성합니다.
 """
 
 import os
-import psycopg
+import psycopg2
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -22,7 +22,7 @@ def init_database():
     
     try:
         # 데이터베이스 연결
-        conn = psycopg.connect(database_url)
+        conn = psycopg2.connect(database_url)
         cur = conn.cursor()
         
         # schema.sql 파일 읽기
