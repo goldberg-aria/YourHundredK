@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS stocks (
     date DATE,
     close_price FLOAT,
     volume BIGINT,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (ticker, date)
 );
 

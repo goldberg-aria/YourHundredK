@@ -21,6 +21,9 @@ logger = logging.getLogger(__name__)
 MIN_REQUEST_DELAY = 2
 MAX_REQUEST_DELAY = 5
 
+# 데이터 최신성 체크 시간 (1시간)
+DATA_FRESHNESS_HOURS = 1
+
 def get_db_connection():
     """데이터베이스 연결을 생성합니다."""
     try:
@@ -73,8 +76,49 @@ def get_cached_stock_info(ticker: str) -> dict:
                 logger.error(f"API 요청 최대 재시도 횟수 초과: {str(e)}")
                 raise
 
+def check_data_freshness(ticker: str) -> bool:
+    """데이터가 1시간 이내에 업데이트되었는지 확인합니다."""
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                # 가장 최근 데이터의 업데이트 시간 확인
+                cur.execute("""
+                    SELECT MAX(date) as last_date, 
+                           MAX(updated_at) as last_updated 
+                    FROM stocks 
+                    WHERE ticker = %s
+                """, (ticker,))
+                result = cur.fetchone()
+                
+                if not result or not result[0]:
+                    logger.info(f"{ticker}: 데이터가 없어서 갱신이 필요합니다")
+                    return False
+                
+                last_date, last_updated = result
+                now = datetime.now(pytz.UTC)
+                
+                # updated_at이 없으면 date 기준으로 판단
+                if last_updated:
+                    time_diff = now - last_updated.replace(tzinfo=pytz.UTC)
+                else:
+                    # date 기준으로 1시간 전인지 확인 (거래 시간 고려)
+                    last_date_utc = last_date.replace(tzinfo=pytz.UTC)
+                    time_diff = now - last_date_utc
+                
+                hours_diff = time_diff.total_seconds() / 3600
+                is_fresh = hours_diff < DATA_FRESHNESS_HOURS
+                
+                logger.info(f"{ticker}: 마지막 업데이트로부터 {hours_diff:.1f}시간 경과, 최신성: {is_fresh}")
+                return is_fresh
+                
+    except Exception as e:
+        logger.error(f"데이터 최신성 확인 중 오류 ({ticker}): {str(e)}")
+        return False
+
 def fetch_stock_data(ticker: str, start_date: str, end_date: str = None, force_refresh: bool = False):
-    """주식 데이터를 가져와서 데이터베이스에 저장합니다. force_refresh가 True면 전체 구간을 새로 저장합니다."""
+    """주식 데이터를 가져와서 데이터베이스에 저장합니다. 
+    force_refresh가 True면 전체 구간을 새로 저장합니다.
+    데이터가 1시간 이상 지났으면 자동으로 갱신합니다."""
     try:
         # 날짜 유효성 검사
         start_date = validate_date(start_date)
@@ -91,6 +135,15 @@ def fetch_stock_data(ticker: str, start_date: str, end_date: str = None, force_r
             raise ValueError(f"시작일 {start_date}가 종료일 {end_date}보다 이후입니다")
 
         logger.info(f"{ticker} 데이터 가져오기: {start_date}부터 {end_date}까지 (force_refresh={force_refresh})")
+
+        # 데이터 최신성 체크 (force_refresh가 아닌 경우에만)
+        if not force_refresh:
+            is_fresh = check_data_freshness(ticker)
+            if is_fresh:
+                logger.info(f"{ticker}: 데이터가 최신 상태입니다 (1시간 이내)")
+                return True
+            else:
+                logger.info(f"{ticker}: 데이터가 오래되어 갱신이 필요합니다 (1시간 이상 경과)")
 
         # 증분 저장: DB에서 마지막 저장 날짜 조회
         if not force_refresh:
@@ -158,21 +211,23 @@ def fetch_stock_data(ticker: str, start_date: str, end_date: str = None, force_r
         try:
             with get_db_connection() as conn:
                 with conn.cursor() as cur:
-                    # 주가 데이터 저장
+                    # 주가 데이터 저장 (updated_at 추가)
                     stock_data = [(
                         ticker,
                         date.strftime('%Y-%m-%d'),
                         float(row['Close']),
-                        int(row['Volume'])
+                        int(row['Volume']),
+                        datetime.now(pytz.UTC)
                     ) for date, row in hist.iterrows()]
 
                     if stock_data:
                         execute_batch(cur,
-                            """INSERT INTO stocks (ticker, date, close_price, volume)
-                               VALUES (%s, %s, %s, %s)
+                            """INSERT INTO stocks (ticker, date, close_price, volume, updated_at)
+                               VALUES (%s, %s, %s, %s, %s)
                                ON CONFLICT (ticker, date) 
                                DO UPDATE SET close_price = EXCLUDED.close_price,
-                                           volume = EXCLUDED.volume""",
+                                           volume = EXCLUDED.volume,
+                                           updated_at = EXCLUDED.updated_at""",
                             stock_data)
 
                     # 배당금 데이터 저장
