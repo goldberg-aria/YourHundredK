@@ -49,8 +49,8 @@ def simulate_investment(ticker, initial_amount, monthly_amount, start_date, end_
     total_invested = initial_amount
     shares = initial_amount / hist.iloc[0]['Close'] if len(hist) > 0 else 0
     
-    current_date = pd.to_datetime(start_date)
-    end_date = pd.to_datetime(end_date)
+    current_date = pd.to_datetime(start_date).tz_localize(hist.index.tz)
+    end_date = pd.to_datetime(end_date).tz_localize(hist.index.tz)
     
     while current_date <= end_date:
         # 해당 날짜의 주가 찾기
@@ -62,7 +62,7 @@ def simulate_investment(ticker, initial_amount, monthly_amount, start_date, end_
         price = hist.loc[trade_date, 'Close']
         
         # 월별 투자 (첫 달 제외)
-        if current_date != pd.to_datetime(start_date):
+        if current_date != pd.to_datetime(start_date).tz_localize(hist.index.tz):
             shares += monthly_amount / price
             total_invested += monthly_amount
         
