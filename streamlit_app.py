@@ -5,13 +5,7 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import yfinance as yf
 import os
-from dotenv import load_dotenv
-import psycopg2
-from psycopg2.extras import execute_batch
 import logging
-
-# 환경변수 로드
-load_dotenv()
 
 # 페이지 설정
 st.set_page_config(
@@ -24,16 +18,6 @@ st.set_page_config(
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-# 데이터베이스 연결 함수
-@st.cache_resource
-def get_db_connection():
-    """데이터베이스 연결을 생성합니다."""
-    try:
-        return psycopg2.connect(os.getenv('DATABASE_URL'))
-    except Exception as e:
-        st.error(f"데이터베이스 연결 실패: {str(e)}")
-        return None
 
 # 주식 데이터 가져오기 함수
 @st.cache_data(ttl=3600)  # 1시간 캐시
