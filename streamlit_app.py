@@ -9,7 +9,6 @@ import yfinance as yf
 import os
 import logging
 import pytz
-import empyrical as ep
 import numpy as np
 from dotenv import load_dotenv
 
@@ -41,6 +40,12 @@ def get_stock_data(ticker, start_date, end_date):
     except Exception as e:
         logger.error(f"Error fetching data for {ticker}: {e}")
         return None, None
+
+def calculate_returns(values):
+    """수익률 계산 함수"""
+    returns = values.pct_change().fillna(0)
+    cum_returns = (1 + returns).cumprod() - 1
+    return returns, cum_returns
 
 def simulate_investment(ticker, start_date, initial_investment, monthly_investment, reinvest_dividends=True):
     # 주식 데이터 가져오기
@@ -125,15 +130,13 @@ def simulate_investment(ticker, start_date, initial_investment, monthly_investme
     final_shares = final_result['shares']
     current_price = final_result['price']
     
-    # empyrical을 사용한 수익률 계산
-    returns = results['current_value'].pct_change().fillna(0)
+    # 수익률 계산
+    returns, cum_returns = calculate_returns(results['current_value'])
+    total_return = cum_returns.iloc[-1] if len(cum_returns) > 0 else 0
     
-    # 시세차익 계산 (empyrical 사용)
+    # 시세차익 계산
     capital_gains = (final_shares * current_price) - total_invested
-    
-    # 수익률 계산 (empyrical 사용)
-    total_return = ep.cum_returns_final(returns)
-    capital_gain_rate = (capital_gains / total_invested) * 100
+    capital_gain_rate = (capital_gains / total_invested) * 100 if total_invested > 0 else 0
     
     # 배당 수익률 계산 (연환산)
     if total_invested > 0:
