@@ -97,8 +97,8 @@ def simulate_investment(ticker, initial_amount, monthly_amount, start_date, end_
     if not period_dividends.empty:
         # 연간 총 배당금/주 계산
         annual_dividend_per_share = period_dividends.sum()
-        # 월평균 배당금/주
-        monthly_avg_dividend = annual_dividend_per_share / len(period_dividends) if len(period_dividends) > 0 else 0
+        # 월평균 배당금/주 (12개월 기준으로 나누기)
+        monthly_avg_dividend = annual_dividend_per_share / 12
         # 연간 배당 수익률 (시작 주가 대비)
         annual_dividend_yield = (annual_dividend_per_share / start_price) * 100
     else:
@@ -143,17 +143,32 @@ def simulate_investment(ticker, initial_amount, monthly_amount, start_date, end_
             current_shares += additional_shares
             total_invested += monthly_amount
         
-        # 해당 월의 배당금 계산 (현재 보유 주식 수 × 월평균 배당금)
+        # 해당 월의 실제 배당금 확인 (실제 배당금 지급일 기준)
+        month_dividend = 0
         if not period_dividends.empty:
-            month_dividend = monthly_avg_dividend * current_shares
-            total_dividends_received += month_dividend
+            # 해당 월의 시작과 끝 날짜
+            month_start = month_date.replace(day=1)
+            if month_date.month == 12:
+                month_end = month_date.replace(year=month_date.year + 1, month=1, day=1) - pd.Timedelta(days=1)
+            else:
+                month_end = month_date.replace(month=month_date.month + 1, day=1) - pd.Timedelta(days=1)
             
-            # 배당금 재투자
-            if reinvest_dividends and month_dividend > 0:
-                reinvested_shares = month_dividend / current_price
-                current_shares += reinvested_shares
-        else:
-            month_dividend = 0
+            # 해당 월에 실제 배당금이 있는지 확인
+            month_dividends_data = period_dividends[
+                (period_dividends.index >= month_start) & 
+                (period_dividends.index <= month_end)
+            ]
+            
+            if not month_dividends_data.empty:
+                # 실제 배당금이 있는 월에만 배당금 계산
+                actual_dividend_per_share = month_dividends_data.sum()
+                month_dividend = actual_dividend_per_share * current_shares
+                total_dividends_received += month_dividend
+                
+                # 배당금 재투자
+                if reinvest_dividends and month_dividend > 0:
+                    reinvested_shares = month_dividend / current_price
+                    current_shares += reinvested_shares
         
         # 현재 포트폴리오 가치
         current_value = current_shares * current_price
@@ -624,7 +639,7 @@ def main():
             st.markdown(f"- 배당수익: ${total_dividends:,.0f} ({dividend_yield_rate:.2f}%)")
             
             if final_result['total_dividends'] > 0:
-                st.info(f"📊 월평균 배당금: ${monthly_avg_dividend:.2f}")
+                st.info(f"월평균 배당금: ${monthly_avg_dividend:.2f}")
             else:
                 st.warning("📊 이 기간 동안 배당금이 없었습니다.")
             
