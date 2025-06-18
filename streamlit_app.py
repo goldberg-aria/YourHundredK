@@ -205,19 +205,25 @@ def simulate_investment(ticker, initial_amount, monthly_amount, start_date, end_
         final_shares = final_result['shares']
         current_price = final_result['price'] 
         capital_gains = (final_shares * current_price) - total_invested        
-        # 수익률 계산
+        # 수익률 계산 (기간 보정)
+        # 투자 기간을 연 단위로 계산
+        investment_years = days_diff / 365.0
+        
+        # 연환산 수익률 계산
         capital_gain_rate = (capital_gains / total_invested) * 100 if total_invested > 0 else 0
-        dividend_yield = (total_dividends_received / total_invested) * 100 if total_invested > 0 else 0
+        # 배당 수익률도 연환산으로 계산
+        dividend_yield = (total_dividends_received / total_invested) * (1 / investment_years) * 100 if total_invested > 0 and investment_years > 0 else 0
         total_return_pct = capital_gain_rate + dividend_yield
         
         # 최종 디버깅 정보
         st.write(f"**{ticker} 최종 결과:**")
+        st.write(f"- 투자 기간: {days_diff}일 ({investment_years:.2f}년)")
         st.write(f"- 총 투자금: ${total_invested:,.2f}")
         st.write(f"- 최종 가치: ${final_value:,.2f}")
         st.write(f"- 총 배당금: ${total_dividends_received:,.2f}")
         st.write(f"- 시세차익: ${capital_gains:,.2f}")
         st.write(f"- 시세차익 수익률: {capital_gain_rate:.2f}%")
-        st.write(f"- 배당 수익률: {dividend_yield:.2f}%")
+        st.write(f"- 배당 수익률 (연환산): {dividend_yield:.2f}%")
         st.write(f"- 총 수익률: {total_return_pct:.2f}%")
     
     return pd.DataFrame(results), pd.DataFrame(dividend_results)
