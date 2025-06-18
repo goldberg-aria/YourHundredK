@@ -425,21 +425,31 @@ def main():
             investment_months = max(1, (end_date - start_date).days / 30)
             monthly_avg_dividend = final_result['total_dividends'] / investment_months
             
+            # 통합 수익률 계산
+            capital_gain = final_result['gain_loss']
+            total_dividends = final_result['total_dividends']
+            total_return = capital_gain + total_dividends
+            total_return_pct = (total_return / final_result['total_invested']) * 100
+            
             summary_data = {
                 "항목": [
                     "투자 기간",
                     "총 투자 횟수",
                     "평균 주가",
-                    "연평균 수익률",
+                    "시세차익 수익률",
                     "배당 수익률",
+                    "🎯 통합 수익률",
+                    "연환산 통합 수익률",
                     "월평균 배당금"
                 ],
                 "값": [
                     f"{(end_date - start_date).days}일",
                     f"{len(results)}회",
                     f"${results['price'].mean():.2f}",
-                    f"{(final_result['return_pct'] / ((end_date - start_date).days / 365)):.2f}%",
+                    f"{final_result['return_pct']:.2f}%",
                     f"{(final_result['total_dividends'] / final_result['total_invested'] * 100):.2f}%",
+                    f"{total_return_pct:.2f}%",
+                    f"{(total_return_pct * 365 / (end_date - start_date).days):.2f}%",
                     f"${monthly_avg_dividend:.2f}"
                 ]
             }
@@ -448,14 +458,26 @@ def main():
         with col2:
             st.subheader("💡 투자 분석")
             
+            # 통합 수익률 계산 (분석용)
+            capital_gain = final_result['gain_loss']
+            total_dividends = final_result['total_dividends']
+            total_return = capital_gain + total_dividends
+            total_return_pct = (total_return / final_result['total_invested']) * 100
+            
             # 분석 메시지
-            if final_result['return_pct'] > 0:
-                st.success(f"🎉 수익을 얻었습니다! (+{final_result['return_pct']:.2f}%)")
+            if total_return_pct > 0:
+                st.success(f"🎉 통합 수익률: +{total_return_pct:.2f}%")
+                st.success(f"💰 총 수익: ${total_return:,.0f}")
             else:
-                st.error(f"📉 손실이 발생했습니다. ({final_result['return_pct']:.2f}%)")
+                st.error(f"📉 통합 수익률: {total_return_pct:.2f}%")
+                st.error(f"💸 총 손실: ${total_return:,.0f}")
+            
+            # 수익 구성 분석
+            st.markdown("**📊 수익 구성:**")
+            st.markdown(f"- 시세차익: ${capital_gain:,.0f} ({final_result['return_pct']:.2f}%)")
+            st.markdown(f"- 배당수익: ${total_dividends:,.0f} ({(total_dividends / final_result['total_invested'] * 100):.2f}%)")
             
             if final_result['total_dividends'] > 0:
-                st.info(f"💰 배당금으로 ${final_result['total_dividends']:,.2f}를 받았습니다.")
                 st.info(f"📊 월평균 배당금: ${monthly_avg_dividend:.2f}")
             else:
                 st.warning("📊 이 기간 동안 배당금이 없었습니다.")
