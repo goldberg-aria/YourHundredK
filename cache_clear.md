@@ -28,4 +28,10 @@ Note: TSLY has 31 dividend records and should show 12+ monthly dividends in simu
 
 ## 목표
 - 비현실적인 수익률 (700%+) 문제 해결
-- 그록 계산과 일치하는 현실적인 수익률 달성 
+- 그록 계산과 일치하는 현실적인 수익률 달성
+
+# Cache Clear Instructions
+
+강제 재배포를 위한 캐시 클리어 파일입니다.
+
+마지막 업데이트: 2025-06-18 03:09:30 - 314% 수익률 문제 완전 해결 
