@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 import yfinance as yf
 import os
 import logging
+import pytz
 
 # 페이지 설정
 st.set_page_config(
@@ -32,102 +33,129 @@ def get_stock_data(ticker, start_date, end_date):
         
         if hist.empty:
             return None, None
-            
+        
         return hist, dividends
     except Exception as e:
-        logger.error(f"주식 데이터 가져오기 오류 ({ticker}): {str(e)}")
+        logger.error(f"Error fetching data for {ticker}: {e}")
         return None, None
 
-# 투자 시뮬레이션 함수
 def simulate_investment(ticker, initial_amount, monthly_amount, start_date, end_date, reinvest_dividends=False):
     """투자 시뮬레이션을 실행합니다."""
     hist, dividends = get_stock_data(ticker, start_date, end_date)
     
-    if hist is None:
+    if hist is None or hist.empty:
         return None, None
     
-    # 월별 투자 시뮬레이션
+    # UTC 타임존으로 통일
+    utc = pytz.UTC
+    
+    # 날짜를 pandas Timestamp로 변환하고 UTC로 설정
+    start_ts = pd.Timestamp(start_date).tz_localize(utc)
+    end_ts = pd.Timestamp(end_date).tz_localize(utc)
+    
+    # 히스토리 데이터의 타임존을 UTC로 변환
+    if hist.index.tz is not None:
+        hist.index = hist.index.tz_convert(utc)
+    else:
+        hist.index = hist.index.tz_localize(utc)
+    
+    # 배당금 데이터의 타임존도 UTC로 변환
+    if not dividends.empty:
+        if dividends.index.tz is not None:
+            dividends.index = dividends.index.tz_convert(utc)
+        else:
+            dividends.index = dividends.index.tz_localize(utc)
+    
+    # 시작일과 종료일에 해당하는 주가 찾기
+    start_price_date = hist.index[hist.index >= start_ts].min()
+    end_price_date = hist.index[hist.index <= end_ts].max()
+    
+    if pd.isna(start_price_date) or pd.isna(end_price_date):
+        return None, None
+    
+    start_price = hist.loc[start_price_date, 'Close']
+    end_price = hist.loc[end_price_date, 'Close']
+    
+    # 초기 투자로 구매할 수 있는 주식 수
+    initial_shares = initial_amount / start_price
+    total_invested = initial_amount
+    total_shares = initial_shares
+    
+    # 월별 데이터 생성
     results = []
     dividend_results = []
-    total_invested = initial_amount
-    initial_price = hist.iloc[0]['Close']
-    shares = initial_amount / initial_price if len(hist) > 0 else 0
-    total_dividends = 0
     
-    # 타임존 통일
-    if hist.index.tz is not None:
-        start_date_tz = pd.to_datetime(start_date).tz_localize(hist.index.tz)
-        end_date_tz = pd.to_datetime(end_date).tz_localize(hist.index.tz)
-    else:
-        start_date_tz = pd.to_datetime(start_date)
-        end_date_tz = pd.to_datetime(end_date)
+    # 월별로 계산
+    current_date = start_ts
+    month_count = 0
+    total_dividends_received = 0
     
-    current_date = start_date_tz
-    
-    while current_date <= end_date_tz:
-        # 해당 날짜의 주가 찾기
-        available_dates = hist.index[hist.index >= current_date]
-        if len(available_dates) == 0:
-            break
-            
-        trade_date = available_dates[0]
-        price = hist.loc[trade_date, 'Close']
+    while current_date <= end_ts:
+        month_count += 1
         
-        # 월별 투자 (첫 달 제외)
-        if current_date != start_date_tz:
-            if monthly_amount > 0:
-                shares += monthly_amount / price
-                total_invested += monthly_amount
+        # 해당 월의 마지막 거래일 찾기
+        month_end = current_date.replace(day=28) + timedelta(days=4)
+        month_end = month_end - timedelta(days=month_end.day)
         
-        # 배당금 계산 - 이전 달부터 현재 달까지의 배당금
-        period_dividends = 0
+        # 해당 월의 주가 데이터 찾기
+        month_prices = hist[(hist.index >= current_date) & (hist.index <= month_end)]
+        
+        if month_prices.empty:
+            # 다음 달로 이동
+            if current_date.month == 12:
+                current_date = current_date.replace(year=current_date.year + 1, month=1)
+            else:
+                current_date = current_date.replace(month=current_date.month + 1)
+            continue
+        
+        # 해당 월의 마지막 주가
+        current_price = month_prices.iloc[-1]['Close']
+        price_date = month_prices.index[-1]
+        
+        # 월별 추가 투자 (첫 달 제외)
+        if month_count > 1 and monthly_amount > 0:
+            additional_shares = monthly_amount / current_price
+            total_shares += additional_shares
+            total_invested += monthly_amount
+        
+        # 해당 월의 배당금 계산
+        month_dividends = 0
         if not dividends.empty:
-            # 이전 기록 날짜부터 현재 날짜까지의 배당금
-            prev_date = current_date - timedelta(days=30)
-            
-            # 타임존 맞추기
-            if dividends.index.tz is not None:
-                if prev_date.tz is None:
-                    prev_date = prev_date.tz_localize(dividends.index.tz)
-                if current_date.tz is None:
-                    current_date = current_date.tz_localize(dividends.index.tz)
-            
-            period_div = dividends[
-                (dividends.index > prev_date) & 
-                (dividends.index <= current_date)
-            ]
-            
-            if len(period_div) > 0:
-                # 해당 기간의 주당 배당금 × 보유 주식 수
-                dividend_per_share = period_div.sum()
-                period_dividends = dividend_per_share * shares
-                total_dividends += period_dividends
+            month_div_data = dividends[(dividends.index >= current_date) & (dividends.index <= month_end)]
+            if not month_div_data.empty:
+                # 주당 배당금 * 보유 주식 수
+                dividend_per_share = month_div_data.sum()
+                month_dividends = dividend_per_share * total_shares
+                total_dividends_received += month_dividends
                 
                 # 배당금 재투자
-                if reinvest_dividends and period_dividends > 0:
-                    additional_shares = period_dividends / price
-                    shares += additional_shares
+                if reinvest_dividends and month_dividends > 0:
+                    additional_shares = month_dividends / current_price
+                    total_shares += additional_shares
         
-        # 현재 가치 계산
-        current_value = shares * price
+        # 현재 포트폴리오 가치
+        current_value = total_shares * current_price
+        gain_loss = current_value - total_invested
+        return_pct = (gain_loss / total_invested) * 100 if total_invested > 0 else 0
         
+        # 결과 저장
         results.append({
-            'date': current_date.tz_convert(None),  # timezone 제거
-            'shares': shares,
-            'price': price,
+            'date': price_date.tz_convert(None),  # 타임존 제거
+            'shares': total_shares,
+            'price': current_price,
             'total_invested': total_invested,
             'current_value': current_value,
-            'gain_loss': current_value - total_invested,
-            'return_pct': ((current_value - total_invested) / total_invested) * 100,
-            'dividends_received': period_dividends,
-            'total_dividends': total_dividends
+            'gain_loss': gain_loss,
+            'return_pct': return_pct,
+            'dividends_received': month_dividends,
+            'total_dividends': total_dividends_received
         })
         
         # 배당금 데이터 (차트용)
-        if period_dividends > 0:
+        if month_dividends > 0:
             dividend_results.append({
-                'date': current_date.tz_convert(None),
-                'dividends': period_dividends
+                'date': price_date.tz_convert(None),
+                'dividends': month_dividends
             })
         
         # 다음 달로 이동
@@ -137,6 +165,40 @@ def simulate_investment(ticker, initial_amount, monthly_amount, start_date, end_
             current_date = current_date.replace(month=current_date.month + 1)
     
     return pd.DataFrame(results), pd.DataFrame(dividend_results)
+
+# CSS 스타일 추가
+def load_css():
+    st.markdown("""
+    <style>
+    .main > div {
+        padding-top: 2rem;
+    }
+    .stMetric {
+        background-color: #f0f2f6;
+        border: 1px solid #ddd;
+        border-radius: 10px;
+        padding: 10px;
+        margin: 5px 0;
+    }
+    .stMetric > div {
+        font-size: 14px !important;
+    }
+    .stMetric > div > div {
+        font-size: 18px !important;
+    }
+    .stButton > button {
+        width: 100%;
+        height: 2.5rem;
+        border-radius: 8px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    .stButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
 # 메인 앱
 def main():
@@ -296,10 +358,10 @@ def main():
         with st.spinner(f"{selected_stock} 데이터를 분석하는 중..."):
             results, dividend_data = simulate_investment(
                 selected_stock, 
-                initial_amount, 
-                monthly_amount, 
-                start_date, 
-                end_date, 
+                initial_amount,
+                monthly_amount,
+                start_date,
+                end_date,
                 reinvest_dividends
             )
         
@@ -330,6 +392,26 @@ def main():
         """, unsafe_allow_html=True)
         
         final_result = results.iloc[-1]
+        initial_result = results.iloc[0]
+        
+        # 정확한 수익률 계산
+        total_invested = final_result['total_invested']
+        final_value = final_result['current_value']
+        total_dividends = final_result['total_dividends']
+        
+        # 시작가와 종료가
+        start_price = initial_result['price']
+        end_price = final_result['price']
+        
+        # 실제 자본 이익률 (주가 변화만)
+        capital_gain_rate = ((end_price - start_price) / start_price) * 100
+        
+        # 실제 배당 수익률 (총 배당금 / 총 투자금)
+        dividend_yield_rate = (total_dividends / total_invested) * 100
+        
+        # 통합 수익률 (최종가치 - 총투자금) / 총투자금
+        total_return_rate = ((final_value - total_invested) / total_invested) * 100
+        
         col1, col2, col3, col4, col5 = st.columns(5)
         
         with col1:
@@ -348,7 +430,7 @@ def main():
         with col3:
             st.metric(
                 "수익률",
-                f"{final_result['return_pct']:.2f}%"
+                f"{total_return_rate:.2f}%"
             )
         
         with col4:
@@ -448,11 +530,18 @@ def main():
             investment_months = max(1, (end_date - start_date).days / 30)
             monthly_avg_dividend = final_result['total_dividends'] / investment_months
             
-            # 통합 수익률 계산
-            capital_gain = final_result['gain_loss']
-            total_dividends = final_result['total_dividends']
-            total_return = capital_gain + total_dividends
-            total_return_pct = (total_return / final_result['total_invested']) * 100
+            # 기간 계산
+            investment_days = (end_date - start_date).days
+            investment_months_count = len(results)
+            
+            # 연환산 수익률
+            if investment_days > 0:
+                annualized_return = ((final_value / total_invested) ** (365 / investment_days) - 1) * 100
+            else:
+                annualized_return = 0
+            
+            # 평균 주가 계산
+            avg_price = results['price'].mean()
             
             summary_data = {
                 "항목": [
@@ -466,13 +555,13 @@ def main():
                     "월평균 배당금"
                 ],
                 "값": [
-                    f"{(end_date - start_date).days}일",
-                    f"{len(results)}회",
-                    f"${results['price'].mean():.2f}",
-                    f"{final_result['return_pct']:.2f}%",
-                    f"{(final_result['total_dividends'] / final_result['total_invested'] * 100):.2f}%",
-                    f"{total_return_pct:.2f}%",
-                    f"{(total_return_pct * 365 / (end_date - start_date).days):.2f}%",
+                    f"{investment_days}일",
+                    f"{investment_months_count}회",
+                    f"${avg_price:.2f}",
+                    f"{capital_gain_rate:.2f}%",
+                    f"{dividend_yield_rate:.2f}%",
+                    f"{total_return_rate:.2f}%",
+                    f"{annualized_return:.2f}%",
                     f"${monthly_avg_dividend:.2f}"
                 ]
             }
@@ -481,24 +570,18 @@ def main():
         with col2:
             st.subheader("💡 투자 분석")
             
-            # 통합 수익률 계산 (분석용)
-            capital_gain = final_result['gain_loss']
-            total_dividends = final_result['total_dividends']
-            total_return = capital_gain + total_dividends
-            total_return_pct = (total_return / final_result['total_invested']) * 100
-            
             # 분석 메시지
-            if total_return_pct > 0:
-                st.success(f"🎉 통합 수익률: +{total_return_pct:.2f}%")
-                st.success(f"💰 총 수익: ${total_return:,.0f}")
+            if total_return_rate > 0:
+                st.success(f"🎉 통합 수익률: +{total_return_rate:.2f}%")
+                st.success(f"💰 총 수익: ${final_value - total_invested:,.0f}")
             else:
-                st.error(f"📉 통합 수익률: {total_return_pct:.2f}%")
-                st.error(f"💸 총 손실: ${total_return:,.0f}")
+                st.error(f"📉 통합 수익률: {total_return_rate:.2f}%")
+                st.error(f"💸 총 손실: ${final_value - total_invested:,.0f}")
             
             # 수익 구성 분석
             st.markdown("**📊 수익 구성:**")
-            st.markdown(f"- 시세차익: ${capital_gain:,.0f} ({final_result['return_pct']:.2f}%)")
-            st.markdown(f"- 배당수익: ${total_dividends:,.0f} ({(total_dividends / final_result['total_invested'] * 100):.2f}%)")
+            st.markdown(f"- 시세차익: ${final_value - total_invested - total_dividends:,.0f} ({capital_gain_rate:.2f}%)")
+            st.markdown(f"- 배당수익: ${total_dividends:,.0f} ({dividend_yield_rate:.2f}%)")
             
             if final_result['total_dividends'] > 0:
                 st.info(f"📊 월평균 배당금: ${monthly_avg_dividend:.2f}")
