@@ -202,8 +202,9 @@ def simulate_investment(ticker, initial_amount, monthly_amount, start_date, end_
         total_gain_loss = final_result['gain_loss']
         
         # 시세차익 계산 (단순화)
-        capital_gains = final_value - total_invested - total_dividends_received
-        
+        final_shares = final_result['shares']
+        current_price = final_result['price'] 
+        capital_gains = (final_shares * current_price) - total_invested        
         # 수익률 계산
         capital_gain_rate = (capital_gains / total_invested) * 100 if total_invested > 0 else 0
         dividend_yield = (total_dividends_received / total_invested) * 100 if total_invested > 0 else 0
