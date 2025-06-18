@@ -129,13 +129,22 @@ def simulate_investment(ticker, initial_amount, monthly_amount, start_date, end_
         if month_date > end_ts:
             break
         
-        # 해당 월의 주가 찾기
-        month_prices = hist[hist.index <= month_date]
-        if month_prices.empty:
-            continue
+        # 해당 월의 주가 정확하게 찾기
+        month_start = month_date.replace(day=1)
+        month_end = (month_date.replace(day=1) + pd.DateOffset(months=1) - pd.Timedelta(days=1))
+        month_prices = hist[(hist.index >= month_start) & (hist.index <= month_end)]
         
-        current_price = month_prices.iloc[-1]['Close']
-        price_date = month_prices.index[-1]
+        if month_prices.empty:
+            # 해당 월 데이터가 없으면 가장 가까운 이전 달의 마지막 가격 사용
+            prev_prices = hist[hist.index < month_start]
+            if prev_prices.empty:
+                continue
+            current_price = prev_prices.iloc[-1]['Close']
+            price_date = prev_prices.index[-1]
+        else:
+            # 해당 월의 마지막 거래일 가격 사용
+            current_price = month_prices.iloc[-1]['Close']
+            price_date = month_prices.index[-1]
         
         # 월별 추가 투자 (첫 달 제외)
         if month > 0 and monthly_amount > 0:
@@ -160,14 +169,16 @@ def simulate_investment(ticker, initial_amount, monthly_amount, start_date, end_
             ]
             
             if not month_dividends_data.empty:
-                # 실제 배당금이 있는 월에만 배당금 계산
-                actual_dividend_per_share = month_dividends_data.sum()
+                # 해당 월의 마지막 배당금만 사용 (중복 방지)
+                actual_dividend_per_share = month_dividends_data.iloc[-1]
+                # 배당금 지급 시점의 보유 주식에 대해서만 계산
                 month_dividend = actual_dividend_per_share * current_shares
                 total_dividends_received += month_dividend
                 
-                # 배당금 재투자
+                # 배당금 재투자 (재투자 시에는 다음 달부터 적용)
                 if reinvest_dividends and month_dividend > 0:
                     reinvested_shares = month_dividend / current_price
+                    # 다음 달부터 적용될 주식 수 업데이트
                     current_shares += reinvested_shares
         
         # 현재 포트폴리오 가치
