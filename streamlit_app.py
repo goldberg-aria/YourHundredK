@@ -61,6 +61,20 @@ def simulate_investment(ticker, start_date, initial_investment, monthly_investme
     # 시작일부터 현재까지의 날짜 범위
     current_date = pd.to_datetime(start_date)
     end_date = hist.index[-1]
+    
+    # 타임존 처리
+    utc = pytz.UTC
+    if hist.index.tz is not None:
+        hist.index = hist.index.tz_convert(utc)
+    else:
+        hist.index = hist.index.tz_localize(utc)
+        
+    if dividends.index.tz is not None:
+        dividends.index = dividends.index.tz_convert(utc)
+    else:
+        dividends.index = dividends.index.tz_localize(utc)
+        
+    current_date = current_date.tz_localize(utc)
     days_diff = (end_date - current_date).days
     
     # 초기 설정
@@ -73,6 +87,7 @@ def simulate_investment(ticker, start_date, initial_investment, monthly_investme
     # 월별 투자 및 배당금 시뮬레이션
     while current_date <= end_date:
         month_end = (current_date.replace(day=1) + pd.DateOffset(months=1) - pd.Timedelta(days=1))
+        month_end = month_end.tz_localize(utc)
         
         # 해당 월의 주가 데이터
         month_prices = hist[(hist.index >= current_date) & (hist.index <= month_end)]
@@ -83,7 +98,7 @@ def simulate_investment(ticker, start_date, initial_investment, monthly_investme
         current_price = month_prices.iloc[-1]['Close']
         
         # 월별 추가 투자
-        if current_date != pd.to_datetime(start_date):  # 초기 투자 제외
+        if current_date != pd.to_datetime(start_date).tz_localize(utc):  # 초기 투자 제외
             additional_shares = monthly_investment / current_price
             current_shares += additional_shares
             total_invested += monthly_investment
