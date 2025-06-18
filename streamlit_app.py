@@ -50,13 +50,21 @@ def simulate_investment(ticker, initial_amount, monthly_amount, start_date, end_
     results = []
     dividend_results = []
     total_invested = initial_amount
-    shares = initial_amount / hist.iloc[0]['Close'] if len(hist) > 0 else 0
+    initial_price = hist.iloc[0]['Close']
+    shares = initial_amount / initial_price if len(hist) > 0 else 0
     total_dividends = 0
     
-    current_date = pd.to_datetime(start_date).tz_localize(hist.index.tz)
-    end_date = pd.to_datetime(end_date).tz_localize(hist.index.tz)
+    # 타임존 통일
+    if hist.index.tz is not None:
+        start_date_tz = pd.to_datetime(start_date).tz_localize(hist.index.tz)
+        end_date_tz = pd.to_datetime(end_date).tz_localize(hist.index.tz)
+    else:
+        start_date_tz = pd.to_datetime(start_date)
+        end_date_tz = pd.to_datetime(end_date)
     
-    while current_date <= end_date:
+    current_date = start_date_tz
+    
+    while current_date <= end_date_tz:
         # 해당 날짜의 주가 찾기
         available_dates = hist.index[hist.index >= current_date]
         if len(available_dates) == 0:
@@ -66,24 +74,39 @@ def simulate_investment(ticker, initial_amount, monthly_amount, start_date, end_
         price = hist.loc[trade_date, 'Close']
         
         # 월별 투자 (첫 달 제외)
-        if current_date != pd.to_datetime(start_date).tz_localize(hist.index.tz):
-            shares += monthly_amount / price
-            total_invested += monthly_amount
+        if current_date != start_date_tz:
+            if monthly_amount > 0:
+                shares += monthly_amount / price
+                total_invested += monthly_amount
         
-        # 배당금 계산
+        # 배당금 계산 - 이전 달부터 현재 달까지의 배당금
         period_dividends = 0
         if not dividends.empty:
+            # 이전 기록 날짜부터 현재 날짜까지의 배당금
+            prev_date = current_date - timedelta(days=30)
+            
+            # 타임존 맞추기
+            if dividends.index.tz is not None:
+                if prev_date.tz is None:
+                    prev_date = prev_date.tz_localize(dividends.index.tz)
+                if current_date.tz is None:
+                    current_date = current_date.tz_localize(dividends.index.tz)
+            
             period_div = dividends[
-                (dividends.index >= current_date - timedelta(days=30)) & 
-                (dividends.index < current_date)
+                (dividends.index > prev_date) & 
+                (dividends.index <= current_date)
             ]
+            
             if len(period_div) > 0:
-                period_dividends = period_div.sum() * shares
+                # 해당 기간의 주당 배당금 × 보유 주식 수
+                dividend_per_share = period_div.sum()
+                period_dividends = dividend_per_share * shares
                 total_dividends += period_dividends
                 
                 # 배당금 재투자
-                if reinvest_dividends:
-                    shares += period_dividends / price
+                if reinvest_dividends and period_dividends > 0:
+                    additional_shares = period_dividends / price
+                    shares += additional_shares
         
         # 현재 가치 계산
         current_value = shares * price
