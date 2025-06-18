@@ -13,7 +13,7 @@ st.set_page_config(
     page_title="What's Your Hundred K? 💰",
     page_icon="💰",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
 # 로깅 설정
@@ -119,70 +119,69 @@ def main():
     st.title("💰 What's Your Hundred K?")
     st.markdown("**주식 투자 시뮬레이터** - 당신의 10만불이 얼마가 될 수 있을까요?")
     
-    # 사이드바 설정
-    st.sidebar.header("📊 투자 설정")
-    
     # 세션 상태 초기화
     if 'selected_stock' not in st.session_state:
         st.session_state.selected_stock = None
     if 'custom_ticker' not in st.session_state:
         st.session_state.custom_ticker = ""
     
+    # 메인 화면에 투자 설정
+    st.header("📊 투자 설정")
+    
+    # 종목 선택 섹션
+    st.subheader("🎯 종목 선택")
+    
     # 🏢 인기 배당주 (5개)
-    st.sidebar.subheader("🏢 배당주")
+    st.markdown("**🏢 배당주**")
     dividend_stocks = ['AAPL', 'JNJ', 'KO', 'PG', 'ABBV']
-    cols = st.sidebar.columns(3)
+    cols = st.columns(5)
     for i, ticker in enumerate(dividend_stocks):
-        col_idx = i % 3
-        with cols[col_idx]:
+        with cols[i]:
             if st.button(ticker, key=f"div_stock_{ticker}", use_container_width=True):
                 st.session_state.selected_stock = ticker
                 st.session_state.custom_ticker = ""
     
     # 📈 인기 배당 ETF (5개)
-    st.sidebar.subheader("📈 배당 ETF")
+    st.markdown("**📈 배당 ETF**")
     dividend_etfs = ['SCHD', 'VYM', 'JEPI', 'DIVO', 'HDV']
-    cols = st.sidebar.columns(3)
+    cols = st.columns(5)
     for i, ticker in enumerate(dividend_etfs):
-        col_idx = i % 3
-        with cols[col_idx]:
+        with cols[i]:
             if st.button(ticker, key=f"div_etf_{ticker}", use_container_width=True):
                 st.session_state.selected_stock = ticker
                 st.session_state.custom_ticker = ""
     
     # 🎯 인기 커버드콜 ETF (5개)
-    st.sidebar.subheader("🎯 커버드콜 ETF")
+    st.markdown("**🎯 커버드콜 ETF**")
     covered_call_etfs = ['QYLD', 'XYLD', 'RYLD', 'JEPQ', 'QYLG']
-    cols = st.sidebar.columns(3)
+    cols = st.columns(5)
     for i, ticker in enumerate(covered_call_etfs):
-        col_idx = i % 3
-        with cols[col_idx]:
+        with cols[i]:
             if st.button(ticker, key=f"cc_etf_{ticker}", use_container_width=True):
                 st.session_state.selected_stock = ticker
                 st.session_state.custom_ticker = ""
     
     # 🌟 인기 개별종목 커버드콜 (5개)
-    st.sidebar.subheader("🌟 개별종목 CC")
+    st.markdown("**🌟 개별종목 CC**")
     individual_covered_calls = ['TSLY', 'NVDY', 'CONY', 'GOOY', 'APLY']
-    cols = st.sidebar.columns(3)
+    cols = st.columns(5)
     for i, ticker in enumerate(individual_covered_calls):
-        col_idx = i % 3
-        with cols[col_idx]:
+        with cols[i]:
             if st.button(ticker, key=f"ind_cc_{ticker}", use_container_width=True):
                 st.session_state.selected_stock = ticker
                 st.session_state.custom_ticker = ""
     
-    # 구분선
-    st.sidebar.markdown("---")
-    
     # 직접 티커 입력
-    st.sidebar.subheader("✍️ 직접 입력")
-    custom_input = st.sidebar.text_input(
-        "티커 심볼 입력 (예: NFLX, UBER)",
-        value=st.session_state.custom_ticker,
-        placeholder="티커를 입력하세요...",
-        key="ticker_input"
-    )
+    st.markdown("**✍️ 직접 입력**")
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        custom_input = st.text_input(
+            "티커 심볼 입력 (예: NFLX, UBER)",
+            value=st.session_state.custom_ticker,
+            placeholder="티커를 입력하세요...",
+            key="ticker_input",
+            label_visibility="collapsed"
+        )
     
     if custom_input and custom_input != st.session_state.custom_ticker:
         st.session_state.custom_ticker = custom_input.upper()
@@ -203,33 +202,39 @@ def main():
         else:
             stock_category = "사용자 입력 종목"
         
-        st.sidebar.success(f"✅ 선택된 종목: **{st.session_state.selected_stock}** ({stock_category})")
+        st.success(f"✅ 선택된 종목: **{st.session_state.selected_stock}** ({stock_category})")
         selected_stock = st.session_state.selected_stock
     else:
-        st.sidebar.info("👆 위에서 종목을 선택하거나 티커를 입력하세요")
+        st.info("👆 위에서 종목을 선택하거나 티커를 입력하세요")
         selected_stock = None
     
-    st.sidebar.markdown("---")
+    st.divider()
     
-    # 투자 금액 설정
-    initial_amount = st.sidebar.number_input(
-        "초기 투자 금액 ($)",
-        min_value=100,
-        max_value=1000000,
-        value=100000,
-        step=1000
-    )
+    # 투자 설정 섹션
+    st.subheader("💰 투자 설정")
     
-    monthly_amount = st.sidebar.number_input(
-        "월별 추가 투자 ($)",
-        min_value=0,
-        max_value=10000,
-        value=0,
-        step=50
-    )
+    # 투자 금액 설정 - 가로로 배치
+    col1, col2 = st.columns(2)
+    with col1:
+        initial_amount = st.number_input(
+            "초기 투자 금액 ($)",
+            min_value=100,
+            max_value=1000000,
+            value=100000,
+            step=1000
+        )
+    
+    with col2:
+        monthly_amount = st.number_input(
+            "월별 추가 투자 ($)",
+            min_value=0,
+            max_value=10000,
+            value=0,
+            step=50
+        )
     
     # 기간 설정
-    col1, col2 = st.sidebar.columns(2)
+    col1, col2, col3 = st.columns([2, 2, 2])
     with col1:
         start_date = st.date_input(
             "시작 날짜",
@@ -244,16 +249,22 @@ def main():
             max_value=datetime.now()
         )
     
-    # 배당금 재투자 옵션 (기본값 False)
-    reinvest_dividends = st.sidebar.checkbox("배당금 재투자", value=False)
+    with col3:
+        # 배당금 재투자 옵션 (기본값 False)
+        reinvest_dividends = st.checkbox("배당금 재투자", value=False)
     
     # 시뮬레이션 실행 조건 확인
     if not selected_stock:
-        st.info("📊 좌측 사이드바에서 종목을 선택하고 '시뮬레이션 실행' 버튼을 누르세요!")
+        st.info("📊 위에서 종목을 선택하고 '시뮬레이션 실행' 버튼을 누르세요!")
         return
     
-    # 시뮬레이션 실행 버튼
-    if st.sidebar.button("🚀 시뮬레이션 실행", type="primary"):
+    # 시뮬레이션 실행 버튼 - 중앙에 크게
+    st.markdown("<br>", unsafe_allow_html=True)
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        simulate_button = st.button("🚀 시뮬레이션 실행", type="primary", use_container_width=True)
+    
+    if simulate_button:
         if start_date >= end_date:
             st.error("시작 날짜는 종료 날짜보다 이전이어야 합니다.")
             return
