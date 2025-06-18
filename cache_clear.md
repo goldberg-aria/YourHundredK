@@ -1,25 +1,24 @@
 # Cache Clear File
 
-Update timestamp: 2025-06-18 03:25:00 KST
+Update timestamp: 2025-06-18 03:30:00 KST
 
 Recent Changes:
-- Restored original layout (user feedback: layout should remain unchanged)
-- Fixed calculation logic only (capital gains, dividend yield, total return)
-- Maintained the 5-column stock selection UI
-- Kept the original metric display format
-- Fixed timezone handling in investment simulation
-- Improved return rate calculations for realistic results
+- Fixed dividend data matching logic for monthly dividend ETFs like TSLY
+- Improved month-end calculation for accurate dividend period matching
+- Added dividend debugging information to show actual dividend counts
+- Enhanced timezone handling for dividend data filtering
+- Fixed monthly dividend recognition (TSLY should show 12+ dividends, not 5)
 
 Purpose: Force Streamlit Cloud cache clear and redeploy
 
-Key fixes (calculation only):
-1. UTC timezone standardization for all datetime operations
-2. Proper start/end price calculation for capital gains  
-3. Accurate dividend calculations per month
-4. Realistic monthly investment simulation
-5. Fixed return rate calculations to match real-world scenarios
+Key fixes for dividend matching:
+1. Proper monthly period calculation for dividend filtering
+2. Enhanced dividend data timezone conversion
+3. Added debugging info to verify dividend data count
+4. Fixed monthly dividend ETF support (TSLY, NVDY, CONY etc)
+5. Improved dividend-to-month matching algorithm
 
-Note: Layout reverted to original design per user request - only calculation improvements applied.
+Note: TSLY has 31 dividend records and should show 12+ monthly dividends in simulation, not just 5.
 
 ## 변경사항
 - 수익률 계산 로직 수정

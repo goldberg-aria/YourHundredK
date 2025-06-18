@@ -81,6 +81,18 @@ def simulate_investment(ticker, initial_amount, monthly_amount, start_date, end_
     total_invested = initial_amount
     total_shares = initial_shares
     
+    # 배당금 필터링 (시작일과 종료일 사이)
+    period_dividends = dividends[(dividends.index >= start_ts) & (dividends.index <= end_ts)]
+    
+    # 배당금 디버깅 정보
+    st.write(f"**{ticker} 배당금 데이터 확인:**")
+    st.write(f"- 전체 배당금 기록: {len(dividends)}개")
+    st.write(f"- 투자기간 배당금: {len(period_dividends)}개")
+    if not period_dividends.empty:
+        st.write("투자기간 배당금 상세:")
+        for date, amount in period_dividends.items():
+            st.write(f"  • {date.strftime('%Y-%m-%d')}: ${amount:.4f}")
+    
     # 월별 데이터 생성
     results = []
     dividend_results = []
@@ -93,19 +105,21 @@ def simulate_investment(ticker, initial_amount, monthly_amount, start_date, end_
     while current_date <= end_ts:
         month_count += 1
         
-        # 해당 월의 마지막 거래일 찾기
-        month_end = current_date.replace(day=28) + timedelta(days=4)
-        month_end = month_end - timedelta(days=month_end.day)
+        # 해당 월의 시작과 끝
+        if current_date.month == 12:
+            next_month = current_date.replace(year=current_date.year + 1, month=1)
+        else:
+            next_month = current_date.replace(month=current_date.month + 1)
+        
+        month_end = next_month - timedelta(days=1)
+        month_end = min(month_end, end_ts)
         
         # 해당 월의 주가 데이터 찾기
         month_prices = hist[(hist.index >= current_date) & (hist.index <= month_end)]
         
         if month_prices.empty:
             # 다음 달로 이동
-            if current_date.month == 12:
-                current_date = current_date.replace(year=current_date.year + 1, month=1)
-            else:
-                current_date = current_date.replace(month=current_date.month + 1)
+            current_date = next_month
             continue
         
         # 해당 월의 마지막 주가
@@ -118,12 +132,17 @@ def simulate_investment(ticker, initial_amount, monthly_amount, start_date, end_
             total_shares += additional_shares
             total_invested += monthly_amount
         
-        # 해당 월의 배당금 계산
+        # 해당 월의 배당금 계산 (더 넓은 범위로 검색)
         month_dividends = 0
-        if not dividends.empty:
-            month_div_data = dividends[(dividends.index >= current_date) & (dividends.index <= month_end)]
+        if not period_dividends.empty:
+            # 해당 월의 배당금 찾기 (월 전체 범위)
+            month_div_data = period_dividends[
+                (period_dividends.index >= current_date) & 
+                (period_dividends.index <= month_end)
+            ]
+            
             if not month_div_data.empty:
-                # 주당 배당금 * 보유 주식 수
+                # 해당 월의 모든 배당금 합계
                 dividend_per_share = month_div_data.sum()
                 month_dividends = dividend_per_share * total_shares
                 total_dividends_received += month_dividends
@@ -159,10 +178,7 @@ def simulate_investment(ticker, initial_amount, monthly_amount, start_date, end_
             })
         
         # 다음 달로 이동
-        if current_date.month == 12:
-            current_date = current_date.replace(year=current_date.year + 1, month=1)
-        else:
-            current_date = current_date.replace(month=current_date.month + 1)
+        current_date = next_month
     
     return pd.DataFrame(results), pd.DataFrame(dividend_results)
 
