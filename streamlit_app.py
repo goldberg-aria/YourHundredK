@@ -507,15 +507,28 @@ def main():
                 f"{final_result['shares']:.2f}"
             )
         
-        # 차트 생성 (서브플롯 - 투자 성과 + 배당금 막대그래프)
+        # 차트 생성 (서브플롯 - 주가차트 + 투자 성과 + 배당금 막대그래프)
         fig = make_subplots(
-            rows=2, cols=1,
-            subplot_titles=('투자 성과', '배당금 수익'),
-            vertical_spacing=0.1,
-            row_heights=[0.7, 0.3]
+            rows=3, cols=1,
+            subplot_titles=(f'{selected_stock} 주가 차트', '투자 성과', '배당금 수익'),
+            vertical_spacing=0.08,
+            row_heights=[0.4, 0.4, 0.2]
         )
         
-        # 메인 차트 - 투자 성과
+                # 주가 차트 (첫 번째 서브플롯)
+        fig.add_trace(
+            go.Scatter(
+                x=results['date'],
+                y=results['price'],
+                mode='lines',
+                name='주가',
+                line=dict(color='red', width=2),
+                hovertemplate='날짜: %{x}<br>주가: $%{y:,.2f}<extra></extra>'
+            ),
+            row=1, col=1
+        )
+
+        # 투자 성과 차트 (두 번째 서브플롯)
         fig.add_trace(
             go.Scatter(
                 x=results['date'],
@@ -525,9 +538,9 @@ def main():
                 line=dict(color='blue', width=2),
                 hovertemplate='날짜: %{x}<br>총 투자금액: $%{y:,.2f}<extra></extra>'
             ),
-            row=1, col=1
+            row=2, col=1
         )
-        
+
         fig.add_trace(
             go.Scatter(
                 x=results['date'],
@@ -538,10 +551,10 @@ def main():
                 fill='tonexty',
                 hovertemplate='날짜: %{x}<br>현재 가치: $%{y:,.2f}<extra></extra>'
             ),
-            row=1, col=1
+            row=2, col=1
         )
         
-        # 배당금 막대 차트
+        # 배당금 막대 차트 (세 번째 서브플롯)
         if not dividend_data.empty:
             fig.add_trace(
                 go.Bar(
@@ -552,7 +565,7 @@ def main():
                     opacity=0.7,
                     hovertemplate='날짜: %{x}<br>배당금: $%{y:,.2f}<extra></extra>'
                 ),
-                row=2, col=1
+                row=3, col=1
             )
         else:
             # 배당금이 없는 경우 빈 차트
@@ -563,7 +576,7 @@ def main():
                     name='배당금 없음',
                     marker_color='lightgray'
                 ),
-                row=2, col=1
+                row=3, col=1
             )
         
         # 차트 레이아웃 설정
@@ -571,14 +584,15 @@ def main():
         
         fig.update_layout(
             title=chart_title,
-            height=700,
+            height=900,  # 3개 차트를 위해 높이 증가
             hovermode='x unified',
             showlegend=True
         )
         
-        fig.update_xaxes(title_text="날짜", row=2, col=1)
-        fig.update_yaxes(title_text="금액 ($)", row=1, col=1)
-        fig.update_yaxes(title_text="배당금 ($)", row=2, col=1)
+        fig.update_xaxes(title_text="날짜", row=3, col=1)
+        fig.update_yaxes(title_text="주가 ($)", row=1, col=1)
+        fig.update_yaxes(title_text="금액 ($)", row=2, col=1)
+        fig.update_yaxes(title_text="배당금 ($)", row=3, col=1)
         
         st.plotly_chart(fig, use_container_width=True)
         
