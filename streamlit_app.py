@@ -79,123 +79,130 @@ def simulate_investment(ticker, initial_amount, monthly_amount, start_date, end_
     # 배당금 필터링 (시작일과 종료일 사이)
     period_dividends = dividends[(dividends.index >= start_ts) & (dividends.index <= end_ts)]
     
-    # 단순한 투자 시뮬레이션
-    # 1. 초기 투자로 주식 구매
+    # 올바른 투자 시뮬레이션
     initial_shares = initial_amount / start_price
-    total_shares = initial_shares
     total_invested = initial_amount
+    total_dividends_received = 0
     
-    # 2. 투자 기간 동안의 총 배당금 계산 (초기 주식 수 기준)
-    total_dividend_per_share = period_dividends.sum() if not period_dividends.empty else 0
-    total_dividends_received = total_dividend_per_share * initial_shares
+    # 투자 기간 계산
+    days_diff = (end_ts - start_ts).days
+    months = max(1, round(days_diff / 30.44))  # 정확한 월수
     
-    # 3. 배당금 재투자 (평균 주가로 계산)
-    if reinvest_dividends and total_dividends_received > 0:
-        # 투자 기간 평균 주가로 배당금 재투자
-        avg_price = hist.loc[start_price_date:end_price_date, 'Close'].mean()
-        reinvested_shares = total_dividends_received / avg_price
-        total_shares += reinvested_shares
-    
-    # 4. 월별 추가 투자 시뮬레이션
-    monthly_additions = 0
-    if monthly_amount > 0:
-        # 대략적인 월수 계산
-        days_diff = (end_ts - start_ts).days
-        months = max(1, round(days_diff / 30))
-        monthly_additions = (months - 1) * monthly_amount  # 첫 달 제외
-        total_invested += monthly_additions
-        
-        # 평균 주가로 월별 투자 계산
-        avg_price = hist.loc[start_price_date:end_price_date, 'Close'].mean()
-        additional_shares = monthly_additions / avg_price
-        total_shares += additional_shares
-    
-    # 5. 최종 결과 계산
-    final_value = total_shares * end_price
-    total_gain_loss = final_value - total_invested
-    total_return_pct = (total_gain_loss / total_invested) * 100
-    
-    # 6. 수익 구성 분석
-    # 시세차익 = (종료가 - 시작가) × 초기주식수 + 추가투자 시세차익
-    capital_gains = (end_price - start_price) * initial_shares
-    if monthly_additions > 0:
-        # 평균 매수가 기준으로 추가 시세차익 계산
-        avg_buy_price = (initial_amount + monthly_additions) / (initial_shares + additional_shares)
-        additional_capital_gains = (end_price - avg_buy_price) * additional_shares
-        capital_gains += additional_capital_gains
-    
-    # 배당 수익률
-    dividend_yield = (total_dividends_received / total_invested) * 100
-    capital_gain_rate = (capital_gains / total_invested) * 100
-    
-    # 간단한 월별 데이터 생성 (시각화용)
+    # 월별 시뮬레이션
     results = []
     dividend_results = []
+    current_shares = initial_shares
     
-    # 월별 데이터를 12개월로 나누어 생성
-    days_diff = (end_ts - start_ts).days
-    months = max(12, round(days_diff / 30))
+    # 월별 배당 수익률 계산 (연간 배당률 ÷ 12)
+    if not period_dividends.empty:
+        # 연간 총 배당금/주 계산
+        annual_dividend_per_share = period_dividends.sum()
+        # 월평균 배당금/주
+        monthly_avg_dividend = annual_dividend_per_share / len(period_dividends) if len(period_dividends) > 0 else 0
+        # 연간 배당 수익률 (시작 주가 대비)
+        annual_dividend_yield = (annual_dividend_per_share / start_price) * 100
+    else:
+        monthly_avg_dividend = 0
+        annual_dividend_yield = 0
     
-    for i in range(months):
-        # 각 월의 날짜 계산
-        if start_ts.month + i <= 12:
-            month_date = start_ts.replace(month=start_ts.month + i)
+    # 디버깅: 배당금 분석
+    st.write(f"**{ticker} 배당금 분석:**")
+    st.write(f"- 시작 주가: ${start_price:.2f}")
+    st.write(f"- 투자기간: {days_diff}일 ({months}개월)")
+    st.write(f"- 배당금 기록: {len(period_dividends)}회")
+    if not period_dividends.empty:
+        st.write(f"- 연간 총 배당금/주: ${annual_dividend_per_share:.4f}")
+        st.write(f"- 월평균 배당금/주: ${monthly_avg_dividend:.4f}")
+        st.write(f"- 연간 배당 수익률: {annual_dividend_yield:.2f}%")
+        st.write(f"- 월평균 배당률: {annual_dividend_yield/12:.2f}%")
+    
+    # 월별 정확한 시뮬레이션
+    for month in range(months):
+        # 해당 월의 날짜 계산
+        if start_ts.month + month <= 12:
+            month_date = start_ts.replace(month=start_ts.month + month)
         else:
-            years_add = (start_ts.month + i - 1) // 12
-            month_num = ((start_ts.month + i - 1) % 12) + 1
+            years_add = (start_ts.month + month - 1) // 12
+            month_num = ((start_ts.month + month - 1) % 12) + 1
             month_date = start_ts.replace(year=start_ts.year + years_add, month=month_num)
         
         if month_date > end_ts:
             break
-            
+        
         # 해당 월의 주가 찾기
         month_prices = hist[hist.index <= month_date]
         if month_prices.empty:
             continue
-            
+        
         current_price = month_prices.iloc[-1]['Close']
         price_date = month_prices.index[-1]
         
-        # 월별 투자금 누적
-        monthly_invested = initial_amount + (i * monthly_amount if i > 0 else 0)
+        # 월별 추가 투자 (첫 달 제외)
+        if month > 0 and monthly_amount > 0:
+            additional_shares = monthly_amount / current_price
+            current_shares += additional_shares
+            total_invested += monthly_amount
         
-        # 해당 시점까지의 배당금
-        month_dividends = period_dividends[period_dividends.index <= month_date].sum() * initial_shares
+        # 해당 월의 배당금 계산 (현재 보유 주식 수 × 월평균 배당금)
+        if not period_dividends.empty:
+            month_dividend = monthly_avg_dividend * current_shares
+            total_dividends_received += month_dividend
+            
+            # 배당금 재투자
+            if reinvest_dividends and month_dividend > 0:
+                reinvested_shares = month_dividend / current_price
+                current_shares += reinvested_shares
+        else:
+            month_dividend = 0
         
-        # 월별 포트폴리오 가치
-        current_shares = initial_shares + (i * monthly_amount / current_price if i > 0 and monthly_amount > 0 else 0)
+        # 현재 포트폴리오 가치
         current_value = current_shares * current_price
+        gain_loss = current_value - total_invested
+        return_pct = (gain_loss / total_invested) * 100 if total_invested > 0 else 0
         
+        # 결과 저장
         results.append({
             'date': price_date.tz_convert(None),
             'shares': current_shares,
             'price': current_price,
-            'total_invested': monthly_invested,
+            'total_invested': total_invested,
             'current_value': current_value,
-            'gain_loss': current_value - monthly_invested,
-            'return_pct': ((current_value - monthly_invested) / monthly_invested) * 100,
-            'dividends_received': month_dividends / months if months > 0 else 0,  # 월평균
-            'total_dividends': month_dividends
+            'gain_loss': gain_loss,
+            'return_pct': return_pct,
+            'dividends_received': month_dividend,
+            'total_dividends': total_dividends_received
         })
         
-        # 배당금이 있는 월만 차트에 표시
-        if i < len(period_dividends) and not period_dividends.empty:
+        # 배당금 차트용 데이터
+        if month_dividend > 0:
             dividend_results.append({
                 'date': price_date.tz_convert(None),
-                'dividends': month_dividends / months if months > 0 else 0
+                'dividends': month_dividend
             })
     
-    # 디버깅 정보
-    st.write(f"**{ticker} 계산 요약:**")
-    st.write(f"- 투자기간: {days_diff}일")
-    st.write(f"- 시작가: ${start_price:.2f}")
-    st.write(f"- 종료가: ${end_price:.2f}")
-    st.write(f"- 주가변동: {((end_price - start_price) / start_price * 100):.2f}%")
-    st.write(f"- 총 배당금/주: ${total_dividend_per_share:.4f}")
-    st.write(f"- 배당금 횟수: {len(period_dividends)}회")
-    st.write(f"- 시세차익 수익률: {capital_gain_rate:.2f}%")
-    st.write(f"- 배당 수익률: {dividend_yield:.2f}%")
-    st.write(f"- 총 수익률: {total_return_pct:.2f}%")
+    # 최종 수익 분석
+    if results:
+        final_result = results[-1]
+        final_value = final_result['current_value']
+        total_gain_loss = final_result['gain_loss']
+        
+        # 시세차익 계산 (단순화)
+        capital_gains = final_value - total_invested - total_dividends_received
+        
+        # 수익률 계산
+        capital_gain_rate = (capital_gains / total_invested) * 100 if total_invested > 0 else 0
+        dividend_yield = (total_dividends_received / total_invested) * 100 if total_invested > 0 else 0
+        total_return_pct = capital_gain_rate + dividend_yield
+        
+        # 최종 디버깅 정보
+        st.write(f"**{ticker} 최종 결과:**")
+        st.write(f"- 총 투자금: ${total_invested:,.2f}")
+        st.write(f"- 최종 가치: ${final_value:,.2f}")
+        st.write(f"- 총 배당금: ${total_dividends_received:,.2f}")
+        st.write(f"- 시세차익: ${capital_gains:,.2f}")
+        st.write(f"- 시세차익 수익률: {capital_gain_rate:.2f}%")
+        st.write(f"- 배당 수익률: {dividend_yield:.2f}%")
+        st.write(f"- 총 수익률: {total_return_pct:.2f}%")
     
     return pd.DataFrame(results), pd.DataFrame(dividend_results)
 
