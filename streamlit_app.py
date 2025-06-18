@@ -58,28 +58,29 @@ def simulate_investment(ticker, start_date, initial_investment, monthly_investme
     stock = yf.Ticker(ticker)
     dividends = stock.dividends
     
-    # 시작일부터 현재까지의 날짜 범위
-    current_date = pd.to_datetime(start_date)
-    end_date = hist.index[-1]
-    
     # 타임존 처리
     utc = pytz.UTC
+    
+    # 시작일부터 현재까지의 날짜 범위
+    current_date = pd.to_datetime(start_date)
+    if current_date.tz is None:
+        current_date = current_date.tz_localize(utc)
+    else:
+        current_date = current_date.tz_convert(utc)
+    
+    # hist.index 타임존 처리
     if hist.index.tz is not None:
         hist.index = hist.index.tz_convert(utc)
     else:
         hist.index = hist.index.tz_localize(utc)
-        
+    
+    # dividends.index 타임존 처리
     if dividends.index.tz is not None:
         dividends.index = dividends.index.tz_convert(utc)
     else:
         dividends.index = dividends.index.tz_localize(utc)
-        
-    current_date = current_date.tz_localize(utc)
-    if end_date.tz is not None:
-        end_date = end_date.tz_convert(utc)
-    else:
-        end_date = end_date.tz_localize(utc)
-        
+    
+    end_date = hist.index[-1]  # 이제 hist.index가 이미 UTC로 설정되어 있음
     days_diff = (end_date - current_date).days
     
     # 초기 설정
@@ -92,7 +93,10 @@ def simulate_investment(ticker, start_date, initial_investment, monthly_investme
     # 월별 투자 및 배당금 시뮬레이션
     while current_date <= end_date:
         month_end = (current_date.replace(day=1) + pd.DateOffset(months=1) - pd.Timedelta(days=1))
-        month_end = month_end.tz_localize(utc)
+        if month_end.tz is None:
+            month_end = month_end.tz_localize(utc)
+        else:
+            month_end = month_end.tz_convert(utc)
         
         # 해당 월의 주가 데이터
         month_prices = hist[(hist.index >= current_date) & (hist.index <= month_end)]
