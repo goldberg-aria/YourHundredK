@@ -75,6 +75,11 @@ def simulate_investment(ticker, start_date, initial_investment, monthly_investme
         dividends.index = dividends.index.tz_localize(utc)
         
     current_date = current_date.tz_localize(utc)
+    if end_date.tz is not None:
+        end_date = end_date.tz_convert(utc)
+    else:
+        end_date = end_date.tz_localize(utc)
+        
     days_diff = (end_date - current_date).days
     
     # 초기 설정
