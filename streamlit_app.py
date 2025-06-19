@@ -10,7 +10,6 @@ import os
 import logging
 import pytz
 import numpy as np
-from dotenv import load_dotenv
 from stock_analyzer import StockAnalyzer
 
 # 페이지 설정
