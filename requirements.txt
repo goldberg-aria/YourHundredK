@@ -8,3 +8,4 @@ requests==2.32.4
 streamlit==1.45.1
 yfinance==0.2.37
 pytz==2025.2
+plotly==5.20.0
