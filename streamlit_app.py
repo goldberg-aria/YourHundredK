@@ -1,16 +1,33 @@
 # Updated: 2025-06-18 03:15 KST - Force cache clear and redeploy
 import streamlit as st
 import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-from datetime import datetime, timedelta
-import yfinance as yf
-import os
 import logging
-import pytz
-import numpy as np
-from stock_analyzer import StockAnalyzer
+import os
+import sys
+
+# 안전한 import 처리
+try:
+    import plotly.express as px
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
+except ImportError as e:
+    st.error(f"Plotly import error: {e}")
+    st.stop()
+
+try:
+    from datetime import datetime, timedelta
+    import yfinance as yf
+    import pytz
+    import numpy as np
+except ImportError as e:
+    st.error(f"Required module import error: {e}")
+    st.stop()
+
+try:
+    from stock_analyzer import StockAnalyzer
+except ImportError as e:
+    st.error(f"Stock analyzer import error: {e}")
+    st.stop()
 
 # 페이지 설정
 st.set_page_config(
